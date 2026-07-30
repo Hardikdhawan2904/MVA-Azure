@@ -4,6 +4,13 @@
 
 Internally it's organized as four cooperating services plus a shared database — not because they're separate projects, but because each stage (classification, profiling, orchestration, Insurance Q&A) is cleanly separable and independently testable. One repo, one dependency set, one way to run it.
 
+## Prerequisites (install these first)
+
+- **Python 3.11+** — [python.org/downloads](https://www.python.org/downloads/). Confirm with `python --version`.
+- **PostgreSQL 17** — [postgresql.org/download/windows](https://www.postgresql.org/download/windows/) (the EDB installer). Install to the default location so the binaries land at `C:\Program Files\PostgreSQL\17\bin\` — the setup commands below reference that exact path. If you install elsewhere or a different version, adjust every `C:\Program Files\PostgreSQL\17\...` path in the commands below to match.
+- **Git** — to clone this repo.
+- Windows only — every setup command below is PowerShell/`.ps1`, matching this project's own dev environment.
+
 ## ⚡ Azure OpenAI Setup (do this first)
 
 This copy of the project runs on **Azure OpenAI**, not Groq. One config
@@ -96,7 +103,7 @@ Each has its own README going deeper on that piece specifically — this file is
    ```
 2. Two layers of `.env` files:
    - **Root** (`cp .env.example .env`, fill in `AZURE_OPENAI_API_KEY`/`AZURE_OPENAI_ENDPOINT`/`AZURE_OPENAI_DEPLOYMENT`): shared values genuinely identical across Agent 1, Agent 2, Agent 3, and the Orchestrator — the LLM provider credentials, the `POSTGRES_*` connection details, `LOG_LEVEL`. Each service loads this as a fallback *underneath* its own local `.env` (local always wins on any key both define). Every LLM call in Agent 1/2/3 uses Azure OpenAI, degrading to a deterministic/template fallback if the call fails or the credentials are missing — the pipeline never hard-fails because of the LLM.
-   - **Per-service** (`cp .env.example .env` inside `Schema-Intelligence-Layer/`, `Agent-Orchestrator/`, and `Analytics-Agent/`): only what's genuinely local to that service — e.g. Agent 1's `AZURE_OPENAI_DEPLOYMENT` override, Agent 3's `DATASET_PATH`/`HOST`/`PORT`, the Orchestrator's `AGENT1_BASE_URL`/`AGENT2_BASE_URL`/etc.
+   - **Per-service (optional — skip this unless you need it)**: `Schema-Intelligence-Layer/`, `Agent-Orchestrator/`, and `Analytics-Agent/` each *can* have their own local `.env` for service-specific overrides (e.g. Agent 1's `AZURE_OPENAI_DEPLOYMENT` override, Agent 3's `DATASET_PATH`/`HOST`/`PORT`, the Orchestrator's `AGENT1_BASE_URL`/`AGENT2_BASE_URL`/etc.), but none of them require one to run — with no local `.env` present, all three fall back cleanly to the root `.env`'s values and each service's own hardcoded defaults. The 3 Azure values from the step above are all that's actually required.
    - `Data-Profiling-Agent` (Agent 2) is the exception — it has its own differently-shaped config (`DATABASE_URL`, `LLM_API_KEY`, a separate Postgres role) and keeps its own fully self-contained `.env`, untouched by the root file.
 3. **First time only** — bootstrap the database. `start-all.ps1` starts the Postgres *process* (native Windows install, not Docker — data dir `C:\PGData\mva-pipeline`, port 5433) but doesn't create the database, schemas, or roles on a genuinely fresh install:
    ```powershell
