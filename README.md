@@ -4,6 +4,35 @@
 
 Internally it's organized as four cooperating services plus a shared database — not because they're separate projects, but because each stage (classification, profiling, orchestration, Insurance Q&A) is cleanly separable and independently testable. One repo, one dependency set, one way to run it.
 
+## ⚡ Azure OpenAI Setup (do this first)
+
+This copy of the project runs on **Azure OpenAI**, not Groq. One config
+file, 3 values, and every service picks it up automatically:
+
+1. Clone this repo.
+2. From the repo root, run:
+   ```bash
+   cp .env.example .env
+   ```
+3. Open the new `.env` file and fill in these 3 lines (they start blank):
+   ```
+   AZURE_OPENAI_API_KEY=
+   AZURE_OPENAI_ENDPOINT=
+   AZURE_OPENAI_DEPLOYMENT=
+   ```
+   - `AZURE_OPENAI_ENDPOINT` is your resource's base URL, e.g.
+     `https://your-resource-name.openai.azure.com` (no trailing path).
+   - `AZURE_OPENAI_DEPLOYMENT` is the *deployment name* you gave the model
+     in Azure AI Studio — not necessarily the underlying model's own name.
+4. Run `start-all.ps1` (see Quick Start below for the full first-time
+   setup, including the one-time Python/database steps).
+
+That's it — Agent 1, Agent 2, Agent 3, and the Orchestrator all read
+these same 3 values from this one file. Nothing else to configure per
+service. **Don't commit your filled-in `.env`** — it's already
+gitignored on purpose, since this repo is public; only the blank
+`.env.example` template is tracked.
+
 ## Architecture
 
 ```
