@@ -1,0 +1,24 @@
+# Column data-category classification weights
+# Controls how strongly each signal type contributes to category scoring
+version: 1
+
+# Signal type weights — how much each evidence source adds to a category score
+signal_weights:
+  name_keyword_match: 0.4
+  semantic_type_match: 0.5
+  column_role_match: 0.3
+  domain_context_boost: 0.2
+  domain_context_boost_weak: 0.1
+  datetime_parse_match: 0.4
+
+# Secondary category selection thresholds
+selection:
+  # Secondary must score at least this fraction of primary score
+  secondary_min_ratio_of_primary: 0.5
+  # Secondary must score at least this absolute value
+  secondary_min_absolute: 0.3
+  # Maximum number of secondary categories
+  max_secondary_categories: 3
+  # Confidence boost when gap between 1st and 2nd is large
+  confidence_gap_threshold: 0.3
+  confidence_gap_boost: 0.1

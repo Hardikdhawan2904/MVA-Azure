@@ -1,0 +1,433 @@
+# =============================================================================
+# agent_config.yml
+# Analytics Agent — Base Identity, Persona, and the Insurance Reference Plugin
+#
+# Agent 3 redesign (plan "zany-giggling-crayon", Phases 0-4): the pipeline
+# itself (app/agents/analytics_agent/nodes/pipeline.py) is now a generic,
+# dataset-driven engine — resolve capabilities -> discover KPIs -> interpret
+# the question -> plan -> schedule -> select a model -> execute -> build
+# evidence -> narrate (see section 6 below) — that works against ANY
+# uploaded dataset, not just Insurance. This file still carries Insurance-
+# specific identity/persona/dataset details (sections 1, 8) because
+# Insurance is the reference domain (app/services/domain_plugins/insurance/ is the one
+# fully-built DomainPlugin, with a curated KPI catalog and 14 pre-computed
+# variance drivers) — a dataset with no matching plugin gets the same
+# generic engine with an empty KPI catalog (GenericDomainPlugin) instead of
+# inheriting any of this file's Insurance-specific content.
+#
+# This file defines, in the order the numbered "── N. ──" section markers
+# below appear: Agent Identity & Role (Insurance reference persona),
+# System Prompt (domain-agnostic behaviour rules + response format),
+# Conversation History/Memory, Tool Registry (underlying service classes —
+# documentation only, not read by code), Pipeline Stages (Stage 1-9,
+# replaces the old per-intent Execution Plans table), ML Readiness Policy,
+# Dataset Context (Insurance reference dataset only), Logging & Audit, and
+# Execution Trace (the client-facing audit returned in every response).
+# =============================================================================
+
+# ── 1. Agent Identity ─────────────────────────────────────────────────────────
+# The name/persona below is Insurance's — the one fully-built reference
+# domain (app/services/domain_plugins/insurance/). A dataset that doesn't match any
+# registered plugin runs through the exact same pipeline with an empty KPI
+# catalog (GenericDomainPlugin) and no Insurance-specific identity implied.
+agent:
+  name: "Insurance Analytics Agent"
+  version: "2.0.0"
+  id: "DS_004_AGENT"
+  description: >
+    Enterprise AI Analytics Agent — a domain-agnostic, dataset-driven
+    analytics engine (capability resolution, KPI discovery, planning,
+    scheduling, model selection, evidence-backed narration) with Insurance
+    as its reference domain: curated KPI definitions, 14 pre-computed
+    variance drivers, and business rules backed by
+    insurance_variance_data_native.csv.
+  domain: "Insurance"
+  sub_domain: "Risk Management & Underwriting"
+  dataset_id: "DS_004"
+  dataset_name: "insurance_variance_data_native.csv"
+  reporting_currency: "USD"
+  amount_unit: "USD thousands"
+
+# ── 2. Agent Role & Persona ───────────────────────────────────────────────────
+role:
+  title: "Analytics Agent"
+  persona: >
+    You are the Analytics Agent of an Enterprise AI Analytics Platform.
+    You are a precise, evidence-driven business analyst specialising in
+    insurance underwriting performance, variance analysis, and risk reporting.
+    You speak in clear, professional financial language using insurance domain
+    terminology (GWP, NEP, Loss Ratio, Combined Ratio, UWR, IBNR, etc.).
+
+  responsibilities:
+    - "Understand the business request"
+    - "Create an execution plan"
+    - "Decide which analytical tools are required"
+    - "Orchestrate those tools in the correct sequence"
+    - "Validate the returned results"
+    - "Produce an evidence-backed answer"
+
+  NOT_responsible_for:
+    - "Performing calculations directly (delegate to Analytics Tool)"
+    - "Guessing answers (use only evidence from tools)"
+    - "Fabricating business logic (only use Rule Engine facts)"
+    - "Hallucinating numbers (all values must come from SQL Tool results)"
+
+# ── 3. System Prompt ──────────────────────────────────────────────────────────
+system_prompt:
+  core_rules:
+    - "NEVER hallucinate."
+    - "NEVER invent calculations."
+    - "NEVER fabricate business logic."
+    - "NEVER generate explanations without analytical evidence."
+    - "NEVER update the Rule Engine without validation."
+    - "ALWAYS prefer deterministic analysis over language-model reasoning."
+    - "ALWAYS cite specific numbers returned from tools."
+    - "If data cannot answer the question, state what additional data is required."
+
+  response_format:
+    sections:
+      - name: "Summary"
+        description: "One-sentence answer to the business question"
+      - name: "Supporting Evidence"
+        description: "Bullet points of all key metrics, values, and variances"
+      - name: "Root Cause"
+        description: "Driver decomposition (only when causal analysis was performed)"
+      - name: "Confidence"
+        description: "HIGH / MEDIUM / LOW with justification"
+
+  confidence_rules:
+    HIGH:   "All required data present: actuals + comparison + root cause evidence"
+    MEDIUM: "Partial data: actuals present but missing comparison period or driver detail"
+    LOW:    "Limited evidence — missing key columns or insufficient data points"
+
+# ── 4. Conversation History / Memory ─────────────────────────────────────────
+memory:
+  enabled: true
+  type: "sliding_window"           # Options: sliding_window | full | summary
+  max_turns: 10                    # Number of past Q&A turns to retain in context
+  include_tool_calls: false        # Don't bloat context with raw tool call logs
+  include_sql_queries: false       # Hide SQL details from LLM context
+  include_evidence: true           # Always carry forward the numerical evidence
+  summarise_after_turns: 10        # After 10 turns, compress history into summary
+  # Persistence is always on now — conversation_turns table in Postgres
+  # (agent3 schema), keyed by conversation_id. See app/services/database.py.
+
+  # What to retain from each past turn
+  turn_schema:
+    - field: "turn_id"
+      type: "integer"
+    - field: "user_query"
+      type: "string"
+    - field: "intent_detected"
+      type: "string"
+    - field: "kpi_name"
+      type: "string"
+    - field: "filters_applied"
+      type: "dict"
+    - field: "tools_used"
+      type: "list"
+    - field: "key_evidence"
+      type: "dict"       # Only the computed numbers, not full DataFrames
+    - field: "agent_response_summary"
+      type: "string"
+    - field: "timestamp"
+      type: "datetime"
+
+# ── 5. Tool Registry ──────────────────────────────────────────────────────────
+# Documentation only — app.config.TOOL_REGISTRY (which used to parse this
+# section) was removed in the Phase 4 dead-code cleanup once it was
+# confirmed nothing read it, even before this redesign: the pipeline always
+# constructed its own tool instances directly (nodes/pipeline.py's
+# AnalyticsGraphNodes.__init__) rather than reading a registry. Kept here
+# as an accurate map of the underlying service classes every analyzer/
+# analysis type is ultimately built on — see section 6 for what actually
+# decides which of these (or which ML/deterministic algorithm) runs for a
+# given request.
+tools:
+  - id: "rule_engine"
+    name: "Rule Engine Tool"
+    file: "app/services/tools/rule_engine.py"
+    class: "RuleEngine"
+    description: "Loads KPI definitions, formulas, thresholds, and drill-down hierarchies — parameterizable per DomainPlugin since Phase 2"
+    used_by:
+      - "kpi_summary/kpi_variance/root_cause analyzers (curated-KPI lookups)"
+      - "interpret_question (KPI-name resolution + Knowledge Update Tool fallback)"
+
+  - id: "sql_tool"
+    name: "SQL / DuckDB Tool"
+    file: "app/services/tools/sql_tool.py"
+    class: "SQLTool"
+    description: "Executes SQL against the uploaded CSV via DuckDB (in-process); one shared, filtered fetch per request since Phase 4 (execute_analyses), not one query per handler"
+    backend: "DuckDB"
+
+  - id: "analytics_tool"
+    name: "Analytics Tool"
+    file: "app/services/tools/analytics_tool.py"
+    class: "AnalyticsTool"
+    description: "Deterministic calculations: aggregation, variance, growth, ranking, group comparison — backs the trend/ranking/comparative_analysis analyzers and kpi_summary/kpi_variance directly"
+
+  - id: "root_cause_tool"
+    name: "Root Cause Tool"
+    file: "app/services/tools/root_cause_tool.py"
+    class: "RootCauseTool"
+    description: "Labeled-driver mode: sums a domain plugin's pre-computed variance-driver columns (Insurance's 14) and ranks contributors. Correlation-based mode (RootCauseAnalyzer, Phase 3) is the generic default for datasets with no such columns."
+
+  - id: "ml_and_deterministic_algorithms"
+    name: "Model Registry (Stage 6) — ML + deterministic strategies"
+    file: "config/model_registry.yml + app/services/analyzers/*_strategies.py + app/services/ml/*.py"
+    description: >
+      Replaces this section's old per-tool "ml_tool" entry — every
+      algorithm (Prophet/LightGBM/IsolationForest/XGBoost/K-Means and
+      every deterministic fallback: Moving Average, Linear Trend,
+      Exponential Smoothing, Z-Score, IQR, Modified Z-Score, Quantile/
+      Equal-Width/Equal-Frequency Binning, ...) registers the same way in
+      config/model_registry.yml and is chosen by ModelSelector at request
+      time — never a fixed intent-to-model dict. See section 6.
+
+  - id: "knowledge_update_tool"
+    name: "Knowledge Update Tool"
+    file: "app/services/tools/knowledge_update_service.py"
+    class: "KnowledgeUpdateTool"
+    description: "Generates and validates new KPI definitions (via Azure OpenAI) when a domain plugin's Rule Engine has a gap"
+    triggers:
+      - "when Rule Engine returns None for a resolved KPI name"
+
+  - id: "explanation_tool"
+    name: "Explanation Tool"
+    file: "app/services/tools/explanation_tool.py"
+    class: "ExplanationTool"
+    description: "Converts EvidenceBuilder.to_narration_context() into business language via Azure OpenAI -- unchanged narration/confidence-override logic since before the redesign, only its input shape changed"
+    llm_provider: "Azure OpenAI"
+    llm_model: "llama-3.3-70b-versatile"
+    llm_temperature: 0.0
+    fallback: "template_formatter (also renders multi-analysis 'report mode' — one section per analysis type)"
+    triggers:
+      - "always last — after all evidence is collected"
+
+# ── 6. Pipeline Stages ────────────────────────────────────────────────────────
+# Replaces the old per-intent "Execution Plans" table above — there is no
+# more intent -> fixed tool chain dispatch. Every request runs the full
+# Stage 1-9 chain (app/agents/analytics_agent/graph.py); AnalyticsPlanner/
+# AnalyticsScheduler (stages 4-5) decide WHAT runs and HOW MANY, not graph
+# routing. See nodes/pipeline.py's module docstring and the plan's "Phase 4
+# Detailed Design" section for the full rationale.
+pipeline_stages:
+  - stage: 1
+    name: "resolve_capabilities"
+    module: "app/services/capability_resolution/"
+    description: >
+      Per capability (forecasting, clustering, classification, regression,
+      segmentation, correlation, association_rules, time_series,
+      anomaly_detection): structural support (can this run at all, given
+      the dataset's shape?) split from execution support (does Agent 2's
+      ml_readiness_score clear this agent's own threshold?). Never
+      recomputes ml_readiness/llm_readiness — consumes Agent 2's scores
+      verbatim, enforced at the function-signature level.
+
+  - stage: 2
+    name: "discover_kpis"
+    module: "app/services/kpi_discovery/"
+    description: >
+      Synthesizes named business KPIs (Profit Margin, Success Rate, Salary
+      Distribution, Claim Frequency, Variance vs Budget, ...) from
+      semantic-role combinations (Agent 2's column classification), never
+      hardcoded column names — this is what lets a genuinely new dataset
+      get real KPIs instead of Insurance's curated catalog.
+
+  - stage: 3
+    name: "interpret_question"
+    module: "app/agents/analytics_agent/nodes/pipeline.py"
+    description: >
+      Narrows the analysis-type candidates to what the question actually
+      asks (deterministic keyword matching, no LLM cost on the common
+      case) and, if a domain plugin with a curated KPI catalog is active,
+      resolves which specific KPI/filters the question is about — mirrors
+      the old system's single-winner intent resolution exactly for the
+      curated-KPI case (kpi_summary/kpi_variance/root_cause/trend/
+      forecast), so "Forecast X" schedules one analysis, not four.
+
+  - stage: 4
+    name: "plan_analytics"
+    module: "app/services/planning/"
+    description: >
+      Decides WHAT is analytically relevant via ColumnContext pattern
+      rules (never domain checks) — a domain plugin's enhance_plan() then
+      injects/overrides curated-KPI-grounded analyses (Insurance:
+      kpi_summary/kpi_variance/root_cause/forecast/trend using the
+      resolved KPI's actual/budget/prior_year/driver columns) and fixed ML
+      feature-column sets (anomaly_detection/segmentation always use
+      Insurance's 9/8-column ratio sets, regardless of which KPI is
+      "current" — this never depended on the question either, in the old
+      system).
+
+  - stage: 5
+    name: "schedule"
+    module: "app/services/scheduling/"
+    description: >
+      Decides WHEN/HOW MANY via a budget (max_parallel_analyses=8,
+      max_ml_analyses=3, max_expensive_operations=2, config/
+      scheduling_budget.yml) — explicitly-requested and KPI-grounded
+      analyses are never trimmed. This is the safeguard against a wide
+      dataset producing dozens of planned analyses in one request.
+
+  - stage: "6+7"
+    name: "execute_analyses"
+    module: "app/services/models_registry/ + app/services/analyzers/"
+    description: >
+      Per scheduled analysis: ModelSelector picks an algorithm (ML or
+      deterministic, config/model_registry.yml — never a fixed intent ->
+      model dict; a domain plugin's preferred deterministic strategy, if
+      any, takes priority) and the matching Analyzer executes it,
+      producing one Evidence object (evidence/confidence/metrics/charts/
+      model_metadata/fallback_metadata/reasons). One shared, filtered
+      DataFrame is fetched once per request (SQLTool), not once per
+      analysis.
+
+  - stage: 8
+    name: "(Evidence, built inline by execute_analyses)"
+    module: "app/services/evidence/evidence_builder.py"
+    description: >
+      EvidenceBuilder accumulates one Evidence per scheduled analysis.
+      to_narration_context() flattens a single analysis to the same flat
+      dict shape the old handlers' evidence always had (zero narration
+      changes needed for that, the overwhelmingly common, case); nests
+      multiple analyses under analyses[analysis_type] for "report mode".
+
+  - stage: 9
+    name: "narrate"
+    module: "app/services/tools/explanation_tool.py"
+    description: >
+      Unchanged Azure OpenAI/template-formatter logic — only its input shape
+      changed (EvidenceBuilder.to_narration_context() instead of a raw
+      dict a handler assembled inline). The template formatter also knows
+      how to render "report mode"'s nested multi-analysis shape, one
+      section per analysis type.
+
+analysis_type_categories:
+  kpi_grounded:
+    description: "Curated-KPI catalog (Insurance today) — target_columns come from the resolved KPI's actual/budget/prior_year/driver columns"
+    types: ["kpi_summary", "kpi_variance", "root_cause", "trend", "forecast"]
+  fixed_feature:
+    description: "Never depend on which KPI (if any) the question is about — always score the same domain-plugin-fixed feature columns"
+    types: ["anomaly_detection", "segmentation"]
+  fully_generic:
+    description: "Structural DatasetContext patterns only — work on any uploaded dataset, no domain plugin required"
+    types: ["clustering", "classification", "regression", "correlation", "association_rules", "feature_importance", "distribution_analysis", "ranking", "comparative_analysis", "outlier_detection", "time_series_analysis"]
+
+# ── 7. ML Readiness Policy ────────────────────────────────────────────────────
+ml_readiness:
+  score: 99.75                   # Passed in from Agent 1 (Data Quality Agent)
+  threshold: 75.0
+  decision: "PASS"
+  authorized_models:
+    - "Prophet"
+    - "LightGBM"
+    - "IsolationForest"
+    - "XGBoost"
+    - "KMeans"
+  # Below threshold, ModelSelector (Stage 6) picks the top-ranked
+  # requires_ml:false entry for the analysis type instead — a richer,
+  # named set of deterministic strategies per analysis type since Phase 1
+  # ("Improve Current Fallbacks"), not one flat catch-all fallback tool:
+  # Moving Average / Linear Trend / Exponential Smoothing (forecast),
+  # Z-Score / IQR / Modified Z-Score (anomaly_detection), Quantile /
+  # Equal-Width / Equal-Frequency Binning (segmentation/clustering) — see
+  # config/model_registry.yml. A domain plugin's preferred deterministic
+  # strategy (get_preferred_deterministic_strategy), if any, wins over the
+  # registry's own default order.
+  fallback_message: >
+    ML readiness score is below threshold. Falling back to the
+    highest-priority deterministic algorithm registered for this analysis
+    type in config/model_registry.yml.
+
+# ── 8. Dataset Context ────────────────────────────────────────────────────────
+# Insurance's reference dataset only — every other uploaded dataset gets
+# its own DatasetContext built per-request (app/services/dataset_context/,
+# Phase 0) from Agent 2's column_profiles/hierarchy/charts/
+# feature_recommendation (or LocalSchemaInferer, on a direct /analyze call
+# with none of those forwarded), never from this static block.
+dataset_context:
+  id: "DS_004"
+  name: "insurance_variance_data_native.csv"
+  rows: 2000
+  columns: 141
+  quality_score: 99.75
+  temporal_range:
+    start: "2024-01-31"
+    end: "2026-06-30"
+    fiscal_years: ["FY2024", "FY2025", "FY2026"]
+    quarters: ["Q1", "Q2", "Q3", "Q4"]
+  geographies:
+    regions: ["EMEA", "APAC", "Africa", "Middle East"]
+    countries: ["United Kingdom", "Singapore", "India", "Australia", "United Arab Emirates", "South Africa"]
+  insurance_segments: ["General Insurance", "Health", "Specialty"]
+  reporting_currency: "USD"
+  pre_computed_kpis:
+    - "loss_ratio_actual"
+    - "expense_ratio_actual"
+    - "combined_ratio_actual"
+    - "claim_frequency_actual"
+    - "average_claim_severity_actual"
+    - "renewal_rate_actual"
+    - "policy_lapse_rate_actual"
+    - "reserve_adequacy_ratio_actual"
+  pre_computed_variance_drivers: 14
+  ml_labelled_columns:
+    - "primary_variance_driver"
+    - "secondary_variance_driver"
+    - "root_cause_tag"
+    - "structural_vs_timing_flag"
+    - "recurring_flag"
+    - "controllable_flag"
+
+# ── 9. Logging & Audit ────────────────────────────────────────────────────────
+logging:
+  level: "INFO"
+  format: "%(asctime)s | %(levelname)s | %(name)s | %(message)s"
+  log_tool_calls: true
+  log_sql_queries: true
+  log_evidence: true
+  audit_trail: true            # Every tool call + result is logged for auditability
+
+# ── 10. Execution Trace (client-facing audit, not just server logs) ──────────
+# Unlike the server-side logging above, this is returned to the caller on
+# every POST /analyze response as execution_trace/execution_summary — built
+# once from the LangGraph run's final state (app/agents/analytics_agent/
+# graph.py::_build_execution_trace), not assembled inline by each node.
+# Kept as an adapter through the Phase 4 redesign, not rewritten: for the
+# single-scheduled-analysis case (100% of Insurance's query shapes), the
+# trace shape below is unchanged from before the redesign — only the
+# "<matched intent>" step name's vocabulary changed (anomaly_detection/
+# segmentation, not anomaly/segment; kpi_summary/kpi_variance, not
+# show_kpi/variance). A genuinely multi-analysis "report mode" request
+# (no curated KPI/keyword narrows the plan — e.g. a bare "analyze this
+# dataset" against a wide non-Insurance upload) gets one step per
+# scheduled analysis instead of one, built directly from each analysis's
+# own Evidence.
+execution_trace:
+  enabled: true
+  steps: ["intent_detection", "<one step per scheduled analysis — usually just one>", "narration"]
+  per_step_fields:
+    - "engine"          # model/tool actually used, or null for a gate-only/early-exit step
+    - "gate"             # {name, score, threshold, passed, breakdown} — null when no readiness gate applies
+    - "reason"           # plain-English explanation, enriched with the readiness breakdown's
+                          # strongest/weakest factor and real model metrics when available
+    - "duration_ms"      # real per-node wall-clock time, via graph.stream(stream_mode="updates")
+    - "model_version"    # only on an ML-gated step where a model actually ran (never on fallback)
+  readiness_gates:
+    ml_readiness:
+      threshold: 75.0
+      breakdown_source: "Agent 2's ReadinessEngine (strengths/blocking_issues/evidence), forwarded by Agent-Orchestrator"
+    llm_readiness:
+      threshold: 75.0
+      # A passed gate whose LLM call actually fails is reported distinctly
+      # ("Template Formatter (Azure OpenAI error)") from a gate that never passed
+      # ("Template Formatter") -- and a genuine Azure OpenAI success is reported
+      # as exactly that ("Azure OpenAI"). ExplanationTool.last_engine_used is what
+      # makes all of this observable -- see _narration_trace_entry() in
+      # graph.py.
+  model_versioning:
+    source: "ml/model_registry.json"   # run metadata (last trained/run timestamps) — distinct from config/model_registry.yml, Stage 6's algorithm-selection catalog
+    prophet: "refits every query — reported as last_run_at, never a fake training date"
+    isolation_forest_and_kmeans: "trained_at from the persisted model + accuracy_metric: null (unsupervised, no fabricated number)"
+    xgboost_and_lightgbm: "real accuracy/r2 cited in the reason for root_cause/forecast when their corroborating evidence is present"

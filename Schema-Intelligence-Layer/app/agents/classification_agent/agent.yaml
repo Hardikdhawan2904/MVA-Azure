@@ -1,0 +1,95 @@
+agent:
+  name: DCA
+  full_name: Dataset Classification Agent
+  version: "1.0.0"
+  domain: Data Intake — Column Description & Business Domain Classification
+
+  role: >
+    Activated once a newly uploaded (or force-reclassify-flagged) dataset has passed
+    the quality gate. DCA investigates the dataset's column metadata and produces
+    both a human-readable description for every column and a business-domain
+    classification for the dataset as a whole.
+
+  goal: >
+    Produce column_descriptions (one sentence per column, grounded only in name/type/
+    sample values) and a classification (business_domain, sub_domain, dataset_summary,
+    confidence, reason) that downstream agents (the Data Profiling Agent) can rely on
+    to select the correct domain config with zero manual input.
+
+  constraints:
+    - Never invents a column that isn't in the dataset's actual column list
+    - Descriptions must be grounded in name/type/sample values only — no speculation
+      presented as fact
+    - business_domain must be one of the standard domains unless none reasonably fit
+    - Generate column descriptions before classifying — classification is more
+      accurate with descriptions available as context
+    - If either sub-task fails (LLM error, malformed response), degrade gracefully
+      with placeholder descriptions / an "Other"/"General" classification rather than
+      failing the whole upload
+
+  # ── LLM config ──────────────────────────────────────────────────────────────
+  llm:
+    provider: Azure OpenAI   # _build_chat_model() in nodes/pipeline.py: AzureChatOpenAI — shared
+                            # across every LLM-touching node in this service.
+    model: from_settings   # Settings.AZURE_OPENAI_DEPLOYMENT
+    # Coordinator turn (deciding which tool to call) — deliberately low temperature,
+    # this is a fixed two-step sequence, not open-ended reasoning.
+    temperature: 0.1
+    max_tokens: 512
+    recursion_limit: 10
+    # Each tool's own internal call (via llm_service.py's _chat_complete)
+    # keeps its original tuning (descriptions: temperature 0.2/max_tokens
+    # 2000; classification: temperature 0.1/max_tokens 500) — see tools.py.
+    # The coordinator's LLM settings above only govern its own tool-selection
+    # turns, not the work each tool does once invoked.
+
+  # ── LangGraph ───────────────────────────────────────────────────────────────
+  langgraph:
+    framework: LangGraph (StateGraph)
+    pattern: ReAct — Agent-Tools Loop
+    state_schema: ClassificationAgentState
+
+    pipeline:
+      entry_point: agent
+      agent_tools:
+        - generate_column_descriptions
+        - classify_dataset
+
+  # ── Tools ─────────────────────────────────────────────────────────────────────
+  tools:
+    - name: generate_column_descriptions
+      description: >
+        Generates a short, one-sentence description for every column in this
+        dataset via the LLM, grounded in each column's name, type, and sample
+        values. Returns a JSON object mapping column name to description. Called
+        before classify_dataset — descriptions improve classification accuracy.
+      inputs: []
+      reads: "Run-bound DatasetMetadata (closed over at tool-build time, not an argument)"
+
+    - name: classify_dataset
+      description: >
+        Classifies the dataset into a business domain and sub-domain via the LLM,
+        using column names/types and — if already generated this run —
+        column_descriptions as additional evidence. Returns a JSON object with
+        business_domain, sub_domain, dataset_summary, confidence, and reason.
+      inputs: []
+      reads: "Run-bound DatasetMetadata, plus column_descriptions if generate_column_descriptions already ran this turn"
+
+  # ── Output schema ─────────────────────────────────────────────────────────────
+  output:
+    format: "tuple[dict[str, str], LLMClassification]"
+    fields:
+      column_descriptions: "dict mapping column name to a one-sentence, evidence-grounded description"
+      business_domain:     "Classified business domain (falls back to 'Other' on failure)"
+      sub_domain:           "Classified sub-domain (falls back to 'General' on failure)"
+      dataset_summary:      "1-2 sentence plain-language summary of what the dataset represents"
+      confidence:           "Optional float — LLM's self-reported confidence in the classification"
+      reason:               "Optional string — LLM's rationale for the chosen domain/sub-domain"
+
+  # ── Invocation ──────────────────────────────────────────────────────────────
+  invocation:
+    entry_function: run_classification_agent
+    file: agents/classification_agent/graph.py
+    signature: "run_classification_agent(metadata: DatasetMetadata) -> ClassificationResult"
+    called_from:
+      - "app/agents/schema_intelligence_agent/nodes/pipeline.py -> classify_dataset_node"

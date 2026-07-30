@@ -1,0 +1,118 @@
+agent:
+  name: DPA
+  full_name: Data Profiling Agent
+  version: "1.0.0"
+  domain: Data Quality — Structural Profiling, Classification, Readiness Scoring
+
+  role: >
+    Deep structural profiler for datasets already classified by the upstream Schema
+    Intelligence Layer. DPA takes a raw file plus a primary_domain (never accepted
+    from a human caller — always derived from the upstream classification), and
+    produces column-level profiling, secondary-domain classification, business-rule
+    evaluation, multi-dimension quality scoring, BI readiness assessment, and chart
+    candidates in one pass.
+
+  goal: >
+    Turn a raw CSV/XLSX upload into a fully profiled, quality-scored, readiness-scored
+    dataset with chart candidates — skipping the expensive downstream stages (rule
+    suggestions, readiness, charts) when the data is too poor for them to be worth
+    computing.
+
+  constraints:
+    - Never accepts primary_domain as free text from an end user — it is a required
+      input, but the only legitimate source is Agent 1's classification (enforced by
+      the Orchestrator, not by this agent itself)
+    - Rule suggestions require human approval (see rule_suggestion_agent/) before
+      they are ever evaluated against future uploads
+    - Below the quality gate, only the cheap deterministic stages run — no LLM calls
+      are made for readiness/suggestions/charts on data already known to be poor
+
+  # ── LLM config ──────────────────────────────────────────────────────────────
+  llm:
+    provider: from_settings (LLM_PROVIDER)   # azure/mock — see
+                            # app/services/llm/factory.py::create_llm_provider().
+    model: from_settings   # Settings.llm_model — shared across every LLM-touching
+                            # node/sub-agent in this service, not duplicated per file
+    burst_cooldown_seconds: from_settings   # Settings.llm_burst_cooldown_seconds
+
+  # ── Quality gate ──────────────────────────────────────────────────────────────
+  quality_gate:
+    min_overall_score: 0.20
+    below_threshold_skips:
+      - generate_suggestions
+      - recommend_target_features's LLM path — finalize_lightweight still computes the
+        deterministic (non-LLM) feature/drop split directly, so feature_recommendation
+        is never empty even below the quality gate
+      - assess_readiness
+      - generate_charts
+      - drill_down_cubes
+
+  # ── LangGraph ───────────────────────────────────────────────────────────────
+  langgraph:
+    framework: LangGraph (StateGraph)
+    pattern: Deterministic pipeline with two real decision points (schema-intelligence
+      retry, quality gate) — not a ReAct loop. See rule_suggestion_agent/ for the one
+      genuine tool-calling sub-agent this pipeline invokes.
+    state_schema: ProfilingState
+
+    pipeline:
+      entry_point: validate_and_load
+      nodes:
+        - validate_and_load
+        - profile_data
+        - schema_intelligence
+        - classify_and_build_hierarchy
+        - evaluate_business_rules
+        - assess_quality
+        - generate_suggestions
+        - recommend_target_features
+        - assess_readiness
+        - generate_charts
+        - finalize
+        - finalize_lightweight
+      conditional_edges:
+        - from: schema_intelligence
+          router: schema_intelligence_router
+          routes:
+            retry: schema_intelligence
+            continue: classify_and_build_hierarchy
+        - from: assess_quality
+          router: quality_gate_router
+          routes:
+            full: generate_suggestions
+            lightweight: finalize_lightweight
+
+  # ── Output schema ─────────────────────────────────────────────────────────────
+  output:
+    format: "PipelineResult"
+    fields:
+      run_id:                  "UUID for this profiling run"
+      status:                  "RunStatus — e.g. COMPLETED, FAILED"
+      primary_domain:          "Domain supplied by the caller (must originate from Agent 1's classification)"
+      secondary_domain:        "Sub-domain classification produced by this pipeline's own classification step"
+      dataset_profile:         "Dataset-level profile (shape, grain, semantic candidates)"
+      column_profiles:         "Per-column structural profile (dtype, nulls, distinct count, samples, refined type)"
+      column_classifications:  "Per-column semantic/business-role classification"
+      hierarchy:               "Detected column hierarchy/grain relationships"
+      quality_assessments:     "Per-dimension quality scores (validity, conformity, consistency, timeliness, integrity, accuracy, business-rule compliance, semantic quality)"
+      overall_quality:         "Combined overall quality score and quality-gate decision"
+      readiness_assessments:   "BI readiness assessment — skipped below the quality gate"
+      feature_recommendation: "Target/feature/drop classification and ML-vs-LLM approach recommendation from feature_target_agent — deterministic (non-LLM) when no business_question/target_column was supplied, always populated (including below the quality gate)"
+      charts:                  "Chart candidates generated from the profile — skipped below the quality gate"
+      drill_down_cubes:        "Drill-down aggregation cubes — skipped below the quality gate"
+      rule_evaluations:        "Results of evaluating existing business rules against this dataset"
+      rule_suggestions:        "New rule proposals from the Rule Suggestion Agent — skipped below the quality gate"
+      warnings:                "Non-fatal issues encountered during the run"
+      started_at:              "Run start timestamp"
+      completed_at:            "Run completion timestamp"
+      error:                    "Populated only if the run failed"
+
+  # ── Invocation ──────────────────────────────────────────────────────────────
+  invocation:
+    entry_function: run_profiling_graph
+    file: app/agents/data_profiling_agent/graph.py
+    signature: >
+      run_profiling_graph(settings, config_repo, schema_intelligence, temp_storage,
+      run_id, file_content, filename, primary_domain, ...) -> PipelineResult
+    called_from:
+      - "app/api/routes/profile_runs.py -> create_profile_run"

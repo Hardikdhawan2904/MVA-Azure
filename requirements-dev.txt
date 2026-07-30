@@ -1,0 +1,8 @@
+# Test dependencies, only needed for Data-Profiling-Agent's test suite.
+# Install with: pip install -r requirements.txt -r requirements-dev.txt
+
+pytest
+pytest-asyncio
+pytest-cov
+factory-boy
+freezegun

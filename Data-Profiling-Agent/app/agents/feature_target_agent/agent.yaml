@@ -1,0 +1,94 @@
+agent:
+  name: FTA
+  full_name: Feature Target Agent
+  version: "1.0.0"
+  domain: Analysis Planning — Target/Feature/Drop Classification, ML-vs-LLM Routing
+
+  role: >
+    Data-analysis planner embedded in the profiling pipeline. FTA is activated once a
+    dataset has passed the quality gate and business rules have been evaluated. Given an
+    optional business question, it investigates the dataset's column roles and value
+    distributions to decide which column is the analysis target, which columns are useful
+    features (with a suggested aggregation where relevant), which columns should be dropped,
+    and whether the question is better answered by an ML approach or an LLM approach. This
+    output is not consumed by any downstream agent in this codebase yet — it exists so a
+    future consumer can read Agent 2's recommendation instead of re-deriving it.
+
+  goal: >
+    Produce a single target/feature/drop/approach recommendation grounded in this dataset's
+    real column names and profiling evidence, and feed it back into ml_readiness/llm_readiness
+    scoring so those scores reflect an actual analysis plan instead of a blind
+    every-non-identifier-column heuristic.
+
+  constraints:
+    - Only runs when a business_question or an explicit target_column override is supplied —
+      when neither is given, the pipeline uses a deterministic (non-LLM) fallback split instead
+    - Never invents a column name — target_column/time_column/every feature_columns and
+      drop_columns entry must be an exact physical column name from this dataset
+    - Returns ONLY valid parseable JSON — no prose, no markdown fences
+    - Cannot execute, train, or run anything itself — it only classifies and recommends;
+      acting on the recommendation is entirely the downstream consumer's responsibility
+
+  # ── LLM config ──────────────────────────────────────────────────────────────
+  llm:
+    provider: Azure OpenAI   # _build_chat_model() in nodes/pipeline.py: AzureChatOpenAI
+    model: from_settings   # resolved at runtime from Settings.llm_model — kept
+                            # out of this file so one env var controls every
+                            # LLM-touching node in the pipeline, not just this agent
+    temperature: 0.1
+    max_tokens: 2000
+    recursion_limit: 15
+
+  # ── LangGraph ───────────────────────────────────────────────────────────────
+  langgraph:
+    framework: LangGraph (StateGraph)
+    pattern: ReAct — Agent-Tools Loop
+    state_schema: FeatureTargetAgentState
+
+    pipeline:
+      entry_point: agent
+      agent_tools:
+        - get_column_statistics
+        - check_value_distribution
+
+  # ── Tools ─────────────────────────────────────────────────────────────────────
+  tools:
+    - name: get_column_statistics
+      description: >
+        Gets the full pre-computed statistics for a specific column by its
+        physical name (nulls, distinct count, dtype, sample values, etc.).
+        Returns an error string listing available columns if the name isn't found.
+      inputs: [column_name]
+      reads: "Run-bound col_profiles (closed over at tool-build time)"
+
+    - name: check_value_distribution
+      description: >
+        Gets the full distinct-value distribution (top-20 value counts) for a
+        column — used before committing to a candidate target's problem_type,
+        to confirm whether it's genuinely binary/categorical (classification)
+        or continuous (regression) rather than guessing from samples alone.
+      inputs: [column_name]
+      reads: "Run-bound DataFrame (closed over at tool-build time)"
+
+  # ── Output schema ─────────────────────────────────────────────────────────────
+  output:
+    format: "dict — single recommendation (not a list, unlike RuleSuggestionAgent)"
+    fields:
+      target_column:        "Exact physical column name to predict/measure, or null"
+      problem_type:          "classification | regression | unknown"
+      time_column:           "Exact physical column name for time-based analysis, or null"
+      recommended_approach:  "ml | llm | hybrid | unknown"
+      approach_reasoning:    "LLM's rationale for the recommended_approach choice"
+      feature_columns:       "list[dict] — column, role, usefulness (high|medium|low), suggested_aggregation, reasoning"
+      drop_columns:          "list[dict] — column, reason"
+      confidence:            "Float [0.0, 1.0], server-rounded to 4 decimal places"
+
+  # ── Invocation ──────────────────────────────────────────────────────────────
+  invocation:
+    entry_function: run_feature_target_agent
+    file: agents/feature_target_agent/graph.py
+    signature: >
+      run_feature_target_agent(llm_model, api_key, col_profiles, sem_candidates, grain_result,
+      df, business_question, target_column_override) -> dict
+    called_from:
+      - "app/agents/data_profiling_agent/nodes/pipeline.py -> recommend_target_features node"

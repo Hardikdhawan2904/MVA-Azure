@@ -1,0 +1,108 @@
+domain: Insurance
+version: 1
+
+secondary_domains:
+  Underwriting:
+    keywords:
+      - underwriting
+      - policy
+      - coverage
+      - risk_band
+    semantic_roles:
+      - premium_amount
+
+  Claims:
+    keywords:
+      - claim
+      - loss
+      - reserve
+      - ibnr
+    semantic_roles:
+      - claims_amount
+
+  Reinsurance:
+    keywords:
+      - reinsurance
+      - ceded
+      - treaty
+      - recovery
+    semantic_roles: []
+
+hierarchy_templates:
+  - key: insurance_organizational
+    priority: 100
+    levels:
+      - business_unit
+      - underwriting_department
+      - underwriting_profit_center
+
+  - key: insurance_geographic
+    priority: 80
+    levels:
+      - region
+      - country
+      - branch
+
+chart_templates:
+  - key: premium_trend
+    category: business
+    chart_type: line
+    required_roles:
+      - temporal_dimension
+      - premium_amount
+    aggregation: sum
+    title_template: "Premium Trend Over Time"
+
+  - key: premium_by_hierarchy
+    category: business
+    chart_type: bar
+    required_roles:
+      - hierarchy_dimension
+      - premium_amount
+    aggregation: sum
+    title_template: "Premium by {hierarchy_level}"
+
+  - key: claims_trend
+    category: business
+    chart_type: line
+    required_roles:
+      - temporal_dimension
+      - claims_amount
+    aggregation: sum
+    title_template: "Claims Trend Over Time"
+
+  - key: claims_by_category
+    category: business
+    chart_type: bar
+    required_roles:
+      - category
+      - claims_amount
+    aggregation: sum
+    title_template: "Claims by Category"
+
+  - key: variance_by_hierarchy
+    category: business
+    chart_type: bar
+    required_roles:
+      - hierarchy_dimension
+      - variance_amount
+    aggregation: sum
+    title_template: "Variance by Business Unit"
+
+business_rules:
+  - rule_key: premium_positive
+    type: numeric_range
+    target_role: premium_amount
+    min_value: 0
+    inclusive_min: true
+    severity: medium
+
+  - rule_key: claims_non_negative
+    type: numeric_range
+    target_role: claims_amount
+    min_value: 0
+    inclusive_min: true
+    severity: medium
+
+mandatory_columns: []
+expected_unique_columns: []

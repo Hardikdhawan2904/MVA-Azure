@@ -1,0 +1,32 @@
+{
+  "kpis": {
+    "transaction_volume": {
+      "label": "Transaction Volume",
+      "actual_column": "transaction_amount_actual",
+      "budget_column": "transaction_amount_budget",
+      "formula": "Total value of processed transactions for the period",
+      "unit": "USD",
+      "higher_is_better": true,
+      "category": "volume",
+      "dependencies": []
+    },
+    "authorization_success_rate": {
+      "label": "Authorization Success Rate",
+      "actual_column": "authorization_success_rate_actual",
+      "formula": "Authorized transactions / attempted transactions",
+      "unit": "%",
+      "higher_is_better": true,
+      "category": "authorization",
+      "dependencies": []
+    },
+    "fraud_rate": {
+      "label": "Fraud Rate",
+      "actual_column": "fraud_rate_actual",
+      "formula": "Flagged fraudulent transactions / total transactions",
+      "unit": "%",
+      "higher_is_better": false,
+      "category": "fraud",
+      "dependencies": []
+    }
+  }
+}

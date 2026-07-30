@@ -1,0 +1,34 @@
+# One dependency set for all three Python services (Schema Intelligence Layer,
+# MVA Data Profiling Engine, Agent Orchestrator). Install once, run any of them.
+#
+# pandas is pinned <3.0.0 because Data-Profiling-Agent's pipeline is built and
+# tested against the pandas 2.x API — pandas 3.x resolves by default if left
+# unpinned and is NOT compatible with it.
+
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+pandas>=2.2.0,<3.0.0
+numpy
+sqlalchemy
+alembic
+psycopg2-binary
+python-multipart
+pyyaml
+openpyxl
+chardet
+httpx
+structlog
+python-dotenv
+langgraph
+langchain-openai
+langchain-core
+
+# ── Analytics Agent (Insurance Q&A stage) ────────────────────────────────
+duckdb>=0.10.0
+prophet>=1.1.5
+lightgbm>=4.3.0
+xgboost>=2.0.3
+scikit-learn>=1.4.0
+shap>=0.44.0

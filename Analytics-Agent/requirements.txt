@@ -1,0 +1,17 @@
+# ── Core ──────────────────────────────────────────────────────────────────────
+duckdb>=0.10.0
+pandas>=2.1.0
+numpy>=1.26.0
+
+# ── ML & Forecasting ──────────────────────────────────────────────────────────
+prophet>=1.1.5
+lightgbm>=4.3.0
+xgboost>=2.0.3
+scikit-learn>=1.4.0
+shap>=0.44.0
+
+# ── LLM (Explanation Tool) — Azure OpenAI, called via httpx (no dedicated SDK needed) ──
+
+# ── Utilities ─────────────────────────────────────────────────────────────────
+python-dotenv>=1.0.0
+pyyaml>=6.0.1

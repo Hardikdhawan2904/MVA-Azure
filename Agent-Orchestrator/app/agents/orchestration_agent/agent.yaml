@@ -1,0 +1,102 @@
+agent:
+  name: ORCH
+  full_name: Orchestration Agent
+  version: "1.0.0"
+  domain: Multi-Agent Pipeline Coordination
+
+  role: >
+    Coordinates the handoff between Agent 1 (Schema Intelligence Layer), Agent 2
+    (Data Profiling Agent), and — optionally, Insurance domain only — Agent 3
+    (Analytics Agent). Makes no profiling, classification, or analytical decisions
+    itself — its only job is sequencing the HTTP calls, deriving Agent 2's
+    primary_domain input directly from Agent 1's classification, forwarding Agent
+    2's full readiness assessment (not just the bare score) into Agent 3's call,
+    and stopping cleanly with a clear error at whichever required stage fails.
+
+  goal: >
+    Run a dataset through the full pipeline and return all agents' results together,
+    without ever asking a human caller to supply a domain Agent 1 has already
+    determined, and without silently continuing past a failed required stage.
+
+  constraints:
+    - Never accepts a manual primary_domain override from the caller — it is always
+      derived from Agent 1's business_domain classification
+    - Stops immediately (no call to Agent 2) if Agent 1 rejects the file at its
+      quality gate
+    - Stops immediately with a clear error if Agent 1's classification isn't one of
+      Agent 2's supported domains — no guessing, no silent fallback domain
+    - Agent 3 is optional and best-effort — outside its scope (non-Insurance domain,
+      no business_question, non-CSV) it's cleanly skipped; if it errors or is
+      unreachable, agent3.status is "failed" with a reason, and this never fails an
+      otherwise-successful agent1/agent2 result
+    - Makes no LLM calls itself — it is a pure deterministic relay; all reasoning
+      happens inside Agent 1, Agent 2, and Agent 3
+
+  # ── LLM config ──────────────────────────────────────────────────────────────
+  llm:
+    provider: none   # this agent makes no LLM calls — see role/constraints above
+
+  # ── LangGraph ───────────────────────────────────────────────────────────────
+  langgraph:
+    framework: LangGraph (StateGraph)
+    pattern: Deterministic sequential relay with conditional stop-on-error edges —
+      not a ReAct loop (no LLM, no tools).
+    state_schema: PipelineState
+
+    pipeline:
+      entry_point: resolve_dataset_identity
+      nodes:
+        - resolve_dataset_identity   # Stage 0A — Dataset Registry (not an agent, deterministic infra)
+        - call_agent1
+        - extract_domain_and_metadata
+        - call_agent2
+        - fetch_agent2_result
+        - persist_master_dataset     # best-effort cache write, cache-miss path only
+        - call_agent3        # optional, best-effort — see constraints above
+        - finalize
+      conditional_edges:
+        - from: resolve_dataset_identity
+          router: route_after_identity
+          routes: { cache_hit: call_agent3, cache_miss: call_agent1 }
+        - from: call_agent1
+          router: route_after_agent1
+          routes: { stop: END, continue: extract_domain_and_metadata }
+        - from: extract_domain_and_metadata
+          router: route_after_domain
+          routes: { stop: END, continue: call_agent2 }
+        - from: call_agent2
+          router: route_after_agent2
+          routes: { stop: END, continue: fetch_agent2_result }
+        - from: fetch_agent2_result
+          router: route_after_fetch
+          routes: { stop: END, continue: persist_master_dataset }
+      edges:
+        - from: persist_master_dataset
+          to: call_agent3     # unconditional — a caching write failure never blocks the pipeline
+        - from: call_agent3
+          to: finalize        # unconditional — call_agent3 never stops the pipeline on its own failure
+        - from: finalize
+          to: END
+
+  # ── Output schema ─────────────────────────────────────────────────────────────
+  output:
+    format: "dict | JSONResponse (error response on any failed required stage)"
+    fields:
+      agent1:              "Agent 1's (Schema Intelligence Layer) full response, with dataframe_records stripped"
+      agent2:              "Agent 2's (Data Profiling Agent) full profiling result, fetched after the run completes"
+      agent3:               "Agent 3's (Analytics Agent) answer — {status: ok, execution_trace, execution_summary, ...} |
+                              {status: skipped, reason} | {status: failed, reason}. Always present with a status field."
+      primary_domain_used: "The business_domain derived from Agent 1's classification and passed to Agent 2"
+      fingerprint:          "SHA-256 content fingerprint the Dataset Registry (Stage 0A) computed for this upload"
+      copy_id:               "This upload's DatasetCopy record id — a new one is created on every call, hit or miss"
+      was_cached:             "True if this response was served from the Dataset Registry's cache (Agent 1/2 not called)"
+
+  # ── Invocation ──────────────────────────────────────────────────────────────
+  invocation:
+    entry_function: run_orchestrator_pipeline
+    file: app/agents/orchestration_agent/graph.py
+    signature: >
+      run_orchestrator_pipeline(filename, content_type, content, sheet_name,
+      force_reclassify, force_revalidate, business_question, target_column) -> dict | JSONResponse
+    called_from:
+      - "app/routes/pipeline.py -> run_pipeline"

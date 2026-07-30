@@ -1,0 +1,24 @@
+# config/capability_thresholds.yml
+#
+# Structural-prerequisite thresholds for Stage 1 (AnalyticsCapabilityResolver,
+# app/services/capability_resolution/). These are dataset-shape checks —
+# "can this analysis mechanically run at all" — NOT readiness thresholds.
+# ML/LLM readiness scoring and thresholds belong to Agent 2 and are read
+# from app/config.py's ML_READINESS_THRESHOLD/LLM_READINESS_THRESHOLD
+# (sourced from ml_config.yml) — never duplicated here.
+
+# Minimum rows for any time-indexed analysis (time_series/forecasting) to
+# be structurally meaningful at all, independent of forecast quality.
+min_rows_for_time_series: 10
+
+# Minimum numeric ("metric") columns needed for these analyses.
+min_metrics_for_clustering: 2
+min_metrics_for_correlation: 2
+min_metrics_for_anomaly_detection: 1
+
+# Categorical ("dimension") column cardinality window considered "workable"
+# for association rules / segmentation-by-category — too low (1 distinct
+# value) carries no signal, too high (near-unique) is really an identifier.
+categorical_cardinality_ratio_min: 0.01
+categorical_cardinality_ratio_max: 0.5
+min_categoricals_for_association_rules: 2

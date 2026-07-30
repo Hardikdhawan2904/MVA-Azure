@@ -1,0 +1,498 @@
+# config/model_registry.yml
+#
+# Stage 6 (ModelRegistry/ModelSelector, app/services/models_registry/) —
+# the "swappable model registry" done for real this time: read directly by
+# ModelSelector at request time, not just by an offline training script.
+# Every algorithm, ML or deterministic, registers the same shape — a
+# deterministic fallback is not a special case bolted onto an analyzer,
+# it's a first-class entry selected by the same mechanism.
+#
+# requires_ml=false entries are what "Improve Current Fallbacks" adds on
+# top of today's single flat method per analysis type (see the plan).
+# enabled=false entries need a dependency not yet installed (statsmodels/
+# pmdarima for ARIMA, catboost, mlxtend for Apriori) — Phase 6, optional.
+
+algorithms:
+  # ── forecast ────────────────────────────────────────────────────────────
+  - algorithm: Prophet
+    purpose: forecast
+    requirements: {requires_ml: true, min_rows: 24, requires_datetime: true, requires_target: false, supports_categorical: false}
+    inputs: [temporal_dimension, metric]
+    outputs: [forecast_values, confidence_interval, trend_components]
+    cost_tier: expensive
+    supported_dataset_types: []
+    implementation_class: app.services.ml.forecaster.ProphetForecaster
+    enabled: true
+
+  - algorithm: ARIMA
+    purpose: forecast
+    requirements: {requires_ml: true, min_rows: 12, requires_datetime: true, requires_target: false, supports_categorical: false}
+    inputs: [temporal_dimension, metric]
+    outputs: [forecast_values, confidence_interval]
+    cost_tier: moderate
+    supported_dataset_types: []
+    implementation_class: app.services.ml.forecaster.ARIMAForecaster
+    enabled: false   # needs statsmodels/pmdarima — Phase 6
+
+  - algorithm: XGBoost Regressor
+    purpose: forecast
+    requirements: {requires_ml: true, min_rows: 30, requires_datetime: false, requires_target: false, supports_categorical: true}
+    inputs: [metric, dimension]
+    outputs: [forecast_values, feature_importances]
+    cost_tier: moderate
+    supported_dataset_types: []
+    implementation_class: app.services.ml.forecaster.LightGBMForecaster
+    enabled: true
+
+  - algorithm: Moving Average
+    purpose: forecast
+    requirements: {requires_ml: false, min_rows: 3, requires_datetime: true, requires_target: false, supports_categorical: false}
+    inputs: [temporal_dimension, metric]
+    outputs: [forecast_values]
+    cost_tier: cheap
+    supported_dataset_types: []
+    implementation_class: app.services.analyzers.forecast_strategies.MovingAverageStrategy
+    enabled: true
+
+  - algorithm: Linear Trend
+    purpose: forecast
+    requirements: {requires_ml: false, min_rows: 5, requires_datetime: true, requires_target: false, supports_categorical: false}
+    inputs: [temporal_dimension, metric]
+    outputs: [forecast_values, trend_slope]
+    cost_tier: cheap
+    supported_dataset_types: []
+    implementation_class: app.services.analyzers.forecast_strategies.LinearTrendStrategy
+    enabled: true
+
+  - algorithm: Exponential Smoothing
+    purpose: forecast
+    requirements: {requires_ml: false, min_rows: 5, requires_datetime: true, requires_target: false, supports_categorical: false}
+    inputs: [temporal_dimension, metric]
+    outputs: [forecast_values, smoothed_series]
+    cost_tier: cheap
+    supported_dataset_types: []
+    implementation_class: app.services.analyzers.forecast_strategies.ExponentialSmoothingStrategy
+    enabled: true
+
+  # ── regression ──────────────────────────────────────────────────────────
+  - algorithm: LightGBM Regressor
+    purpose: regression
+    requirements: {requires_ml: true, min_rows: 30, requires_datetime: false, requires_target: true, supports_categorical: true}
+    inputs: [metric, dimension]
+    outputs: [predictions, feature_importances, r2, rmse]
+    cost_tier: moderate
+    supported_dataset_types: []
+    implementation_class: app.services.ml.forecaster.LightGBMForecaster
+    enabled: true
+
+  - algorithm: Random Forest Regressor
+    purpose: regression
+    requirements: {requires_ml: true, min_rows: 30, requires_datetime: false, requires_target: true, supports_categorical: true}
+    inputs: [metric, dimension]
+    outputs: [predictions, feature_importances, r2]
+    cost_tier: moderate
+    supported_dataset_types: []
+    implementation_class: app.services.analyzers.regression_strategies.RandomForestRegressorStrategy
+    enabled: true
+
+  - algorithm: CatBoost Regressor
+    purpose: regression
+    requirements: {requires_ml: true, min_rows: 30, requires_datetime: false, requires_target: true, supports_categorical: true}
+    inputs: [metric, dimension]
+    outputs: [predictions, feature_importances, r2]
+    cost_tier: moderate
+    supported_dataset_types: []
+    implementation_class: app.services.analyzers.regression_strategies.CatBoostRegressorStrategy
+    enabled: false   # needs catboost — Phase 6
+
+  - algorithm: Linear Regression
+    purpose: regression
+    requirements: {requires_ml: false, min_rows: 5, requires_datetime: false, requires_target: true, supports_categorical: false}
+    inputs: [metric]
+    outputs: [predictions, r2, coefficients]
+    cost_tier: cheap
+    supported_dataset_types: []
+    implementation_class: app.services.analyzers.regression_strategies.LinearRegressionStrategy
+    enabled: true
+
+  # ── classification ──────────────────────────────────────────────────────
+  - algorithm: XGBoost Classifier
+    purpose: classification
+    requirements: {requires_ml: true, min_rows: 30, requires_datetime: false, requires_target: true, supports_categorical: true}
+    inputs: [metric, dimension]
+    outputs: [predictions, class_probabilities, accuracy, f1_macro, shap_values]
+    cost_tier: moderate
+    supported_dataset_types: []
+    implementation_class: app.services.ml.classifier.VarianceClassifier
+    enabled: true
+
+  - algorithm: Random Forest Classifier
+    purpose: classification
+    requirements: {requires_ml: true, min_rows: 30, requires_datetime: false, requires_target: true, supports_categorical: true}
+    inputs: [metric, dimension]
+    outputs: [predictions, class_probabilities, accuracy]
+    cost_tier: moderate
+    supported_dataset_types: []
+    implementation_class: app.services.analyzers.classification_strategies.RandomForestClassifierStrategy
+    enabled: true
+
+  - algorithm: Logistic Regression
+    purpose: classification
+    requirements: {requires_ml: true, min_rows: 20, requires_datetime: false, requires_target: true, supports_categorical: false}
+    inputs: [metric]
+    outputs: [predictions, class_probabilities, accuracy]
+    cost_tier: cheap
+    supported_dataset_types: []
+    implementation_class: app.services.analyzers.classification_strategies.LogisticRegressionStrategy
+    enabled: true
+
+  - algorithm: Majority Class Baseline
+    purpose: classification
+    requirements: {requires_ml: false, min_rows: 1, requires_datetime: false, requires_target: true, supports_categorical: true}
+    inputs: [dimension]
+    outputs: [predictions]
+    cost_tier: cheap
+    supported_dataset_types: []
+    implementation_class: app.services.analyzers.classification_strategies.MajorityClassBaselineStrategy
+    enabled: true
+
+  # ── clustering / segmentation ──────────────────────────────────────────
+  - algorithm: K-Means
+    purpose: segmentation
+    requirements: {requires_ml: true, min_rows: 10, requires_datetime: false, requires_target: false, supports_categorical: false, min_feature_columns: 2}
+    inputs: [metric]
+    outputs: [cluster_assignments, centroids, inertia]
+    cost_tier: moderate
+    supported_dataset_types: []
+    implementation_class: app.services.ml.classifier.RiskSegmenter
+    enabled: true
+
+  - algorithm: DBSCAN
+    purpose: segmentation
+    requirements: {requires_ml: true, min_rows: 10, requires_datetime: false, requires_target: false, supports_categorical: false, min_feature_columns: 2}
+    inputs: [metric]
+    outputs: [cluster_assignments, noise_points]
+    cost_tier: moderate
+    supported_dataset_types: []
+    implementation_class: app.services.analyzers.clustering_strategies.DBSCANStrategy
+    enabled: true
+
+  - algorithm: Hierarchical Clustering
+    purpose: segmentation
+    requirements: {requires_ml: true, min_rows: 10, requires_datetime: false, requires_target: false, supports_categorical: false, min_feature_columns: 2}
+    inputs: [metric]
+    outputs: [cluster_assignments, dendrogram]
+    cost_tier: moderate
+    supported_dataset_types: []
+    implementation_class: app.services.analyzers.clustering_strategies.AgglomerativeClusteringStrategy
+    enabled: true
+
+  - algorithm: Quantile Binning
+    purpose: segmentation
+    requirements: {requires_ml: false, min_rows: 4, requires_datetime: false, requires_target: false, supports_categorical: false}
+    inputs: [metric]
+    outputs: [segment_assignments, bin_edges]
+    cost_tier: cheap
+    supported_dataset_types: []
+    implementation_class: app.services.analyzers.segmentation_strategies.QuantileBinningStrategy
+    enabled: true
+
+  - algorithm: Equal-Width Binning
+    purpose: segmentation
+    requirements: {requires_ml: false, min_rows: 4, requires_datetime: false, requires_target: false, supports_categorical: false}
+    inputs: [metric]
+    outputs: [segment_assignments, bin_edges]
+    cost_tier: cheap
+    supported_dataset_types: []
+    implementation_class: app.services.analyzers.segmentation_strategies.EqualWidthBinningStrategy
+    enabled: true
+
+  - algorithm: Equal-Frequency Binning
+    purpose: segmentation
+    requirements: {requires_ml: false, min_rows: 4, requires_datetime: false, requires_target: false, supports_categorical: false}
+    inputs: [metric]
+    outputs: [segment_assignments, bin_edges]
+    cost_tier: cheap
+    supported_dataset_types: []
+    implementation_class: app.services.analyzers.segmentation_strategies.EqualFrequencyBinningStrategy
+    enabled: true
+
+  - algorithm: Insurance Combined Ratio Buckets
+    purpose: segmentation
+    requirements: {requires_ml: false, min_rows: 1, requires_datetime: false, requires_target: false, supports_categorical: false}
+    inputs: [metric]
+    outputs: [segment_assignments]
+    cost_tier: cheap
+    supported_dataset_types: [Insurance]
+    implementation_class: app.services.domain_plugins.insurance.plugin.InsuranceCombinedRatioBucketsStrategy
+    enabled: true   # only ever selected via InsurancePlugin.get_preferred_deterministic_strategy() — not a generic default
+
+  - algorithm: Categorical Grouping
+    purpose: segmentation
+    requirements: {requires_ml: false, min_rows: 1, requires_datetime: false, requires_target: false, supports_categorical: true}
+    inputs: [dimension]
+    outputs: [segment_assignments]
+    cost_tier: cheap
+    supported_dataset_types: []
+    implementation_class: app.services.analyzers.segmentation_strategies.CategoricalGroupingStrategy
+    enabled: true
+
+  - algorithm: K-Means (clustering)
+    purpose: clustering
+    requirements: {requires_ml: true, min_rows: 10, requires_datetime: false, requires_target: false, supports_categorical: false, min_feature_columns: 2}
+    inputs: [metric]
+    outputs: [cluster_assignments, centroids, inertia]
+    cost_tier: moderate
+    supported_dataset_types: []
+    implementation_class: app.services.ml.classifier.RiskSegmenter
+    enabled: true
+
+  - algorithm: Quantile Binning (clustering)
+    purpose: clustering
+    requirements: {requires_ml: false, min_rows: 4, requires_datetime: false, requires_target: false, supports_categorical: false}
+    inputs: [metric]
+    outputs: [cluster_assignments, bin_edges]
+    cost_tier: cheap
+    supported_dataset_types: []
+    implementation_class: app.services.analyzers.segmentation_strategies.QuantileBinningStrategy
+    enabled: true
+
+  - algorithm: Categorical Grouping (clustering)
+    purpose: clustering
+    requirements: {requires_ml: false, min_rows: 1, requires_datetime: false, requires_target: false, supports_categorical: true}
+    inputs: [dimension]
+    outputs: [cluster_assignments]
+    cost_tier: cheap
+    supported_dataset_types: []
+    implementation_class: app.services.analyzers.segmentation_strategies.CategoricalGroupingStrategy
+    enabled: true
+
+  # ── anomaly_detection ───────────────────────────────────────────────────
+  - algorithm: Isolation Forest
+    purpose: anomaly_detection
+    requirements: {requires_ml: true, min_rows: 10, requires_datetime: false, requires_target: false, supports_categorical: false}
+    inputs: [metric]
+    outputs: [anomaly_flags, anomaly_scores]
+    cost_tier: moderate
+    supported_dataset_types: []
+    implementation_class: app.services.ml.anomaly_detector.AnomalyDetector
+    enabled: true
+
+  - algorithm: Local Outlier Factor
+    purpose: anomaly_detection
+    requirements: {requires_ml: true, min_rows: 10, requires_datetime: false, requires_target: false, supports_categorical: false}
+    inputs: [metric]
+    outputs: [anomaly_flags, anomaly_scores]
+    cost_tier: moderate
+    supported_dataset_types: []
+    implementation_class: app.services.analyzers.anomaly_strategies.LocalOutlierFactorStrategy
+    enabled: true
+
+  - algorithm: One-Class SVM
+    purpose: anomaly_detection
+    requirements: {requires_ml: true, min_rows: 10, requires_datetime: false, requires_target: false, supports_categorical: false}
+    inputs: [metric]
+    outputs: [anomaly_flags]
+    cost_tier: expensive
+    supported_dataset_types: []
+    implementation_class: app.services.analyzers.anomaly_strategies.OneClassSVMStrategy
+    enabled: true
+
+  - algorithm: Z-Score
+    purpose: anomaly_detection
+    requirements: {requires_ml: false, min_rows: 3, requires_datetime: false, requires_target: false, supports_categorical: false}
+    inputs: [metric]
+    outputs: [anomaly_flags, deviation_stds]
+    cost_tier: cheap
+    supported_dataset_types: []
+    implementation_class: app.services.analyzers.anomaly_strategies.ZScoreStrategy
+    enabled: true
+
+  - algorithm: IQR
+    purpose: anomaly_detection
+    requirements: {requires_ml: false, min_rows: 4, requires_datetime: false, requires_target: false, supports_categorical: false}
+    inputs: [metric]
+    outputs: [anomaly_flags, iqr_bounds]
+    cost_tier: cheap
+    supported_dataset_types: []
+    implementation_class: app.services.analyzers.anomaly_strategies.IQRStrategy
+    enabled: true
+
+  - algorithm: Modified Z-Score (MAD)
+    purpose: anomaly_detection
+    requirements: {requires_ml: false, min_rows: 3, requires_datetime: false, requires_target: false, supports_categorical: false}
+    inputs: [metric]
+    outputs: [anomaly_flags, deviation_mad]
+    cost_tier: cheap
+    supported_dataset_types: []
+    implementation_class: app.services.analyzers.anomaly_strategies.ModifiedZScoreStrategy
+    enabled: true
+
+  # ── feature_importance ──────────────────────────────────────────────────
+  - algorithm: SHAP
+    purpose: feature_importance
+    requirements: {requires_ml: true, min_rows: 20, requires_datetime: false, requires_target: true, supports_categorical: true}
+    inputs: [metric, dimension]
+    outputs: [feature_contributions, shap_values]
+    cost_tier: expensive
+    supported_dataset_types: []
+    implementation_class: app.services.ml.classifier.VarianceClassifier
+    enabled: true
+
+  - algorithm: Permutation Importance
+    purpose: feature_importance
+    requirements: {requires_ml: true, min_rows: 20, requires_datetime: false, requires_target: true, supports_categorical: true}
+    inputs: [metric, dimension]
+    outputs: [feature_contributions]
+    cost_tier: moderate
+    supported_dataset_types: []
+    implementation_class: app.services.analyzers.feature_importance_strategies.PermutationImportanceStrategy
+    enabled: true
+
+  - algorithm: Correlation-Based Importance
+    purpose: feature_importance
+    requirements: {requires_ml: false, min_rows: 5, requires_datetime: false, requires_target: true, supports_categorical: false}
+    inputs: [metric]
+    outputs: [feature_contributions]
+    cost_tier: cheap
+    supported_dataset_types: []
+    implementation_class: app.services.analyzers.feature_importance_strategies.CorrelationBasedImportanceStrategy
+    enabled: true
+
+  # ── correlation ─────────────────────────────────────────────────────────
+  - algorithm: Pearson
+    purpose: correlation
+    requirements: {requires_ml: false, min_rows: 3, requires_datetime: false, requires_target: false, supports_categorical: false}
+    inputs: [metric]
+    outputs: [correlation_matrix, p_values]
+    cost_tier: cheap
+    supported_dataset_types: []
+    implementation_class: app.services.analyzers.correlation_strategies.PearsonStrategy
+    enabled: true
+
+  - algorithm: Spearman
+    purpose: correlation
+    requirements: {requires_ml: false, min_rows: 3, requires_datetime: false, requires_target: false, supports_categorical: false}
+    inputs: [metric]
+    outputs: [correlation_matrix, p_values]
+    cost_tier: cheap
+    supported_dataset_types: []
+    implementation_class: app.services.analyzers.correlation_strategies.SpearmanStrategy
+    enabled: true
+
+  # ── association_rules ───────────────────────────────────────────────────
+  - algorithm: Apriori
+    purpose: association_rules
+    requirements: {requires_ml: false, min_rows: 10, requires_datetime: false, requires_target: false, supports_categorical: true}
+    inputs: [dimension]
+    outputs: [frequent_itemsets, rules, support, confidence, lift]
+    cost_tier: moderate
+    supported_dataset_types: []
+    implementation_class: app.services.analyzers.association_strategies.AprioriStrategy
+    enabled: false   # needs mlxtend — Phase 6
+
+  - algorithm: Contingency Table Co-occurrence
+    purpose: association_rules
+    requirements: {requires_ml: false, min_rows: 5, requires_datetime: false, requires_target: false, supports_categorical: true}
+    inputs: [dimension]
+    outputs: [co_occurrence_matrix, conditional_probabilities]
+    cost_tier: cheap
+    supported_dataset_types: []
+    implementation_class: app.services.analyzers.association_strategies.ContingencyTableStrategy
+    enabled: true   # pandas crosstab-based — always available, no mlxtend needed
+
+  # ── always-deterministic analysis types (no ML variant by design) ─────
+  - algorithm: Trend (linear regression over time)
+    purpose: trend
+    requirements: {requires_ml: false, min_rows: 2, requires_datetime: true, requires_target: false, supports_categorical: false}
+    inputs: [temporal_dimension, metric]
+    outputs: [trend_direction, trend_slope]
+    cost_tier: cheap
+    supported_dataset_types: []
+    implementation_class: app.services.tools.analytics_tool.AnalyticsTool
+    enabled: true
+
+  - algorithm: Descriptive Distribution
+    purpose: distribution_analysis
+    requirements: {requires_ml: false, min_rows: 2, requires_datetime: false, requires_target: false, supports_categorical: true}
+    inputs: [metric]
+    outputs: [percentiles, histogram_bins]
+    cost_tier: cheap
+    supported_dataset_types: []
+    implementation_class: app.services.analyzers.distribution_strategies.DescriptiveDistributionStrategy
+    enabled: true
+
+  - algorithm: Ranking
+    purpose: ranking
+    requirements: {requires_ml: false, min_rows: 1, requires_datetime: false, requires_target: false, supports_categorical: true}
+    inputs: [metric, dimension]
+    outputs: [ranked_records]
+    cost_tier: cheap
+    supported_dataset_types: []
+    implementation_class: app.services.tools.analytics_tool.AnalyticsTool
+    enabled: true
+
+  - algorithm: Comparative Groupby
+    purpose: comparative_analysis
+    requirements: {requires_ml: false, min_rows: 2, requires_datetime: false, requires_target: false, supports_categorical: true}
+    inputs: [metric, dimension]
+    outputs: [group_comparison]
+    cost_tier: cheap
+    supported_dataset_types: []
+    implementation_class: app.services.tools.analytics_tool.AnalyticsTool
+    enabled: true
+
+  - algorithm: Deterministic Driver Decomposition
+    purpose: root_cause
+    requirements: {requires_ml: false, min_rows: 1, requires_datetime: false, requires_target: false, supports_categorical: false}
+    inputs: [metric]
+    outputs: [driver_breakdown, primary_driver, explained_variance]
+    cost_tier: cheap
+    supported_dataset_types: []
+    implementation_class: app.services.tools.root_cause_tool.RootCauseTool
+    enabled: true
+
+  - algorithm: Time Series Descriptive
+    purpose: time_series_analysis
+    requirements: {requires_ml: false, min_rows: 2, requires_datetime: true, requires_target: false, supports_categorical: false}
+    inputs: [temporal_dimension, metric]
+    outputs: [series_summary, seasonality_flag]
+    cost_tier: cheap
+    supported_dataset_types: []
+    implementation_class: app.services.analyzers.time_series_strategies.TimeSeriesDescriptiveStrategy
+    enabled: true
+
+  - algorithm: Z-Score (outlier_detection)
+    purpose: outlier_detection
+    requirements: {requires_ml: false, min_rows: 3, requires_datetime: false, requires_target: false, supports_categorical: false}
+    inputs: [metric]
+    outputs: [outlier_flags, deviation_stds]
+    cost_tier: cheap
+    supported_dataset_types: []
+    implementation_class: app.services.analyzers.anomaly_strategies.ZScoreStrategy
+    enabled: true
+
+  # ── kpi_summary / kpi_variance (Phase 4) ────────────────────────────────
+  # Curated-KPI lookups (RuleEngine.get_kpi() + a domain plugin's actual/
+  # budget/prior_year column mapping) — always deterministic by design, a
+  # named business-metric comparison was never an algorithm-selection
+  # decision. See app/services/analyzers/kpi_strategies.py.
+  - algorithm: KPI Aggregation
+    purpose: kpi_summary
+    requirements: {requires_ml: false, min_rows: 1, requires_datetime: false, requires_target: false, supports_categorical: false}
+    inputs: [metric]
+    outputs: [actual, budget, variance_amount, variance_pct, direction]
+    cost_tier: cheap
+    supported_dataset_types: []
+    implementation_class: app.services.analyzers.kpi_strategies.KPISummaryStrategy
+    enabled: true
+
+  - algorithm: KPI Variance Analysis
+    purpose: kpi_variance
+    requirements: {requires_ml: false, min_rows: 1, requires_datetime: false, requires_target: false, supports_categorical: false}
+    inputs: [metric]
+    outputs: [actual, budget, prior_year, variance_vs_budget_amount, variance_vs_prior_year_amount]
+    cost_tier: cheap
+    supported_dataset_types: []
+    implementation_class: app.services.analyzers.kpi_strategies.KPIVarianceStrategy
+    enabled: true

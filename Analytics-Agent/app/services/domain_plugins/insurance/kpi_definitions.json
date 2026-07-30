@@ -1,0 +1,212 @@
+{
+  "kpis": {
+    "gross_written_premium": {
+      "label": "Gross Written Premium (GWP)",
+      "abbreviation": "GWP",
+      "actual_column": "gross_written_premium_actual",
+      "budget_column": "gross_written_premium_budget",
+      "prior_year_column": "gross_written_premium_prior_year",
+      "formula": "Sum of all premium written before ceding to reinsurers",
+      "unit": "USD thousands",
+      "higher_is_better": true,
+      "category": "premium",
+      "dependencies": []
+    },
+    "net_written_premium": {
+      "label": "Net Written Premium (NWP)",
+      "abbreviation": "NWP",
+      "actual_column": "net_written_premium_actual",
+      "budget_column": "net_written_premium_budget",
+      "formula": "GWP - Ceded Reinsurance Premium",
+      "unit": "USD thousands",
+      "higher_is_better": true,
+      "category": "premium",
+      "dependencies": ["gross_written_premium", "ceded_reinsurance_premium"]
+    },
+    "ceded_reinsurance_premium": {
+      "label": "Ceded Reinsurance Premium",
+      "actual_column": "ceded_reinsurance_premium_actual",
+      "budget_column": "ceded_reinsurance_premium_budget",
+      "formula": "Premium transferred to reinsurer",
+      "unit": "USD thousands",
+      "higher_is_better": false,
+      "category": "premium",
+      "dependencies": []
+    },
+    "earned_premium": {
+      "label": "Earned Premium",
+      "actual_column": "earned_premium_actual",
+      "budget_column": "earned_premium_budget",
+      "prior_year_column": "earned_premium_prior_year",
+      "formula": "Portion of written premium earned over the policy period",
+      "unit": "USD thousands",
+      "higher_is_better": true,
+      "category": "premium",
+      "dependencies": []
+    },
+    "net_earned_premium": {
+      "label": "Net Earned Premium (NEP)",
+      "abbreviation": "NEP",
+      "actual_column": "net_earned_premium_actual",
+      "budget_column": "net_earned_premium_budget",
+      "formula": "Earned Premium - Reinsurance Earned Premium",
+      "unit": "USD thousands",
+      "higher_is_better": true,
+      "category": "premium",
+      "dependencies": ["earned_premium"]
+    },
+    "gross_claims_incurred": {
+      "label": "Gross Claims Incurred",
+      "actual_column": "gross_claims_incurred_actual",
+      "budget_column": "gross_claims_incurred_budget",
+      "prior_year_column": "gross_claims_incurred_prior_year",
+      "formula": "Total claims cost before reinsurance recovery",
+      "unit": "USD thousands",
+      "higher_is_better": false,
+      "category": "claims",
+      "dependencies": []
+    },
+    "net_claims_incurred": {
+      "label": "Net Claims Incurred",
+      "actual_column": "net_claims_incurred_actual",
+      "budget_column": "net_claims_incurred_budget",
+      "formula": "Gross Claims Incurred - Reinsurance Recovery",
+      "unit": "USD thousands",
+      "higher_is_better": false,
+      "category": "claims",
+      "dependencies": ["gross_claims_incurred", "reinsurance_recovery"]
+    },
+    "underwriting_result": {
+      "label": "Underwriting Result",
+      "abbreviation": "UWR",
+      "actual_column": "underwriting_result_actual",
+      "budget_column": "underwriting_result_budget",
+      "prior_year_column": "underwriting_result_prior_year",
+      "ytd_actual_column": "ytd_underwriting_result_actual",
+      "ytd_budget_column": "ytd_underwriting_result_budget",
+      "formula": "Net Earned Premium - Net Claims Incurred - Acquisition Expense - Claims Handling Expense - Admin Expense",
+      "unit": "USD thousands",
+      "higher_is_better": true,
+      "category": "profitability",
+      "dependencies": [
+        "net_earned_premium",
+        "net_claims_incurred",
+        "acquisition_expense",
+        "claims_handling_expense",
+        "administrative_expense"
+      ]
+    },
+    "loss_ratio": {
+      "label": "Loss Ratio",
+      "actual_column": "loss_ratio_actual",
+      "budget_column": "loss_ratio_budget",
+      "prior_year_column": "loss_ratio_prior_year",
+      "formula": "(Net Claims Incurred / Net Earned Premium) * 100",
+      "unit": "%",
+      "higher_is_better": false,
+      "thresholds": {
+        "healthy": 60,
+        "warning": 75,
+        "critical": 90
+      },
+      "category": "ratio",
+      "dependencies": ["net_claims_incurred", "net_earned_premium"]
+    },
+    "expense_ratio": {
+      "label": "Expense Ratio",
+      "actual_column": "expense_ratio_actual",
+      "budget_column": "expense_ratio_budget",
+      "formula": "((Acquisition Expense + Admin Expense) / Net Earned Premium) * 100",
+      "unit": "%",
+      "higher_is_better": false,
+      "thresholds": {
+        "healthy": 25,
+        "warning": 35,
+        "critical": 45
+      },
+      "category": "ratio",
+      "dependencies": ["acquisition_expense", "administrative_expense", "net_earned_premium"]
+    },
+    "combined_ratio": {
+      "label": "Combined Ratio",
+      "actual_column": "combined_ratio_actual",
+      "budget_column": "combined_ratio_budget",
+      "formula": "Loss Ratio + Expense Ratio",
+      "unit": "%",
+      "higher_is_better": false,
+      "thresholds": {
+        "healthy": 90,
+        "warning": 100,
+        "critical": 110,
+        "note": "Combined Ratio > 100% means underwriting loss"
+      },
+      "category": "ratio",
+      "dependencies": ["loss_ratio", "expense_ratio"]
+    },
+    "claim_frequency": {
+      "label": "Claim Frequency",
+      "actual_column": "claim_frequency_actual",
+      "budget_column": "claim_frequency_budget",
+      "formula": "Claims Reported Count / Policies in Force",
+      "unit": "rate",
+      "higher_is_better": false,
+      "category": "claims",
+      "dependencies": ["claims_reported_count", "policies_in_force"]
+    },
+    "average_claim_severity": {
+      "label": "Average Claim Severity",
+      "actual_column": "average_claim_severity_actual",
+      "budget_column": "average_claim_severity_budget",
+      "formula": "Total Claims Paid / Claims Count",
+      "unit": "USD thousands",
+      "higher_is_better": false,
+      "category": "claims",
+      "dependencies": ["claims_paid_amount", "claims_approved_count"]
+    },
+    "renewal_rate": {
+      "label": "Renewal Rate",
+      "actual_column": "renewal_rate_actual",
+      "formula": "(Renewed Policy Count / Renewal Due Policy Count) * 100",
+      "unit": "%",
+      "higher_is_better": true,
+      "thresholds": {
+        "healthy": 80,
+        "warning": 70,
+        "critical": 60
+      },
+      "category": "policy",
+      "dependencies": ["renewed_policy_count", "renewal_due_policy_count"]
+    },
+    "policy_lapse_rate": {
+      "label": "Policy Lapse Rate",
+      "actual_column": "policy_lapse_rate_actual",
+      "formula": "(Lapsed Policy Count / Policies in Force) * 100",
+      "unit": "%",
+      "higher_is_better": false,
+      "category": "policy",
+      "dependencies": ["lapsed_policy_count", "policies_in_force"]
+    },
+    "reserve_adequacy_ratio": {
+      "label": "Reserve Adequacy Ratio",
+      "actual_column": "reserve_adequacy_ratio_actual",
+      "formula": "(Outstanding Claim Reserve + IBNR Reserve) / Net Claims Incurred",
+      "unit": "ratio",
+      "higher_is_better": true,
+      "thresholds": {
+        "adequate": 1.0,
+        "warning": 0.9
+      },
+      "category": "reserve",
+      "dependencies": ["outstanding_claim_reserve", "ibnr_reserve", "net_claims_incurred"]
+    },
+    "premium_collection_rate": {
+      "label": "Premium Collection Rate",
+      "actual_column": "premium_collection_rate_actual",
+      "formula": "(Premium Collected / Gross Written Premium) * 100",
+      "unit": "%",
+      "higher_is_better": true,
+      "category": "premium",
+      "dependencies": ["premium_collected", "gross_written_premium"]
+    }
+  }
+}

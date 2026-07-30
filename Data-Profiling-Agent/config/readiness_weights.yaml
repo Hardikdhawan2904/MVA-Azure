@@ -1,0 +1,45 @@
+# AI readiness weight profiles
+version: 1
+
+analytics:
+  weight_profile_version: "analytics-v1"
+  weights:
+    completeness: 0.20
+    validity: 0.15
+    consistency: 0.15
+    conformity: 0.10
+    timeliness: 0.10
+    usable_metrics: 0.10
+    usable_dimensions: 0.10
+    identifiable_grain: 0.05
+    usable_temporal_fields: 0.05
+
+ml:
+  weight_profile_version: "ml-v1"
+  weights:
+    completeness: 0.20
+    consistency: 0.15
+    feature_coverage: 0.15
+    identifier_contamination: 0.10
+    row_count_adequacy: 0.10
+    cardinality_health: 0.10
+    uniqueness: 0.10
+    outlier_ratio: 0.05
+    target_availability: 0.05
+
+llm:
+  weight_profile_version: "llm-v1"
+  weights:
+    description_coverage: 0.20
+    semantic_quality: 0.20
+    text_availability: 0.15
+    schema_clarity: 0.15
+    context_rich_metadata: 0.10
+    consistent_terminology: 0.10
+    safe_sample_availability: 0.05
+    unresolved_semantic_fields: 0.05
+
+# Thresholds (same for all types)
+thresholds:
+  ready: 80.0
+  partially_ready: 60.0

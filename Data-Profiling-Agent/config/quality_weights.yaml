@@ -1,0 +1,22 @@
+# Data quality dimension weights for overall score calculation
+version: 1
+formula_version: "quality-v1"
+
+weights:
+  completeness: 0.20
+  uniqueness: 0.15
+  validity: 0.15
+  conformity: 0.10
+  consistency: 0.15
+  business_rule_compliance: 0.10
+  timeliness: 0.05
+  integrity: 0.03
+  accuracy: 0.02
+  semantic_quality: 0.05
+
+# Semantic quality sub-weights
+semantic_quality_components:
+  schema_intelligence_confidence: 0.30
+  column_classification_confidence: 0.25
+  secondary_domain_confidence: 0.25
+  hierarchy_confidence: 0.20

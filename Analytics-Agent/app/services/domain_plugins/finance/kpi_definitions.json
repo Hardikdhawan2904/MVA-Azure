@@ -1,0 +1,36 @@
+{
+  "kpis": {
+    "net_profit": {
+      "label": "Net Profit",
+      "actual_column": "net_profit_actual",
+      "budget_column": "net_profit_budget",
+      "prior_year_column": "net_profit_prior_year",
+      "formula": "Revenue - Total Costs",
+      "unit": "USD",
+      "higher_is_better": true,
+      "category": "profitability",
+      "dependencies": []
+    },
+    "revenue": {
+      "label": "Revenue",
+      "actual_column": "revenue_actual",
+      "budget_column": "revenue_budget",
+      "prior_year_column": "revenue_prior_year",
+      "formula": "Total recognized revenue for the period",
+      "unit": "USD",
+      "higher_is_better": true,
+      "category": "revenue",
+      "dependencies": []
+    },
+    "operating_cost": {
+      "label": "Operating Cost",
+      "actual_column": "cost_actual",
+      "budget_column": "cost_budget",
+      "formula": "Total operating expenses for the period",
+      "unit": "USD",
+      "higher_is_better": false,
+      "category": "cost",
+      "dependencies": []
+    }
+  }
+}

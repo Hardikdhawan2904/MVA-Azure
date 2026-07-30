@@ -1,0 +1,31 @@
+{
+    "passing_score": 75,
+    "weights": {
+        "column_count": 15,
+        "missing_values": 20,
+        "duplicate_columns": 5,
+        "duplicate_rows": 5,
+        "empty_columns": 10,
+        "datatype_consistency": 15,
+        "corrupted_values": 10,
+        "null_heavy_rows": 10,
+        "cell_length_outliers": 5,
+        "mixed_formats": 5
+    },
+    "limits": {
+        "min_columns": 1,
+        "max_missing_values_pct": 20.0,
+        "max_single_column_missing_pct": 50.0,
+        "max_duplicate_rows_pct": 10.0,
+        "max_empty_columns_pct": 10.0,
+        "min_datatype_consistency_pct": 80.0,
+        "max_corrupted_values_pct": 5.0,
+        "max_null_heavy_rows_pct": 10.0,
+        "max_cell_length_outliers_pct": 5.0,
+        "max_mixed_formats_pct": 10.0,
+        "null_heavy_row_pct_threshold": 50.0,
+        "corrupted_placeholders": ["?", "n/a", "na", "null", "none", "undefined", "NaN"],
+        "free_text_min_avg_words": 4,
+        "free_text_min_avg_length": 40
+    }
+}

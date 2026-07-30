@@ -1,0 +1,33 @@
+{
+  "kpis": {
+    "customer_satisfaction_score": {
+      "label": "Customer Satisfaction Score",
+      "actual_column": "csat_score_actual",
+      "budget_column": "csat_score_budget",
+      "formula": "Average CSAT survey score for the period",
+      "unit": "score",
+      "higher_is_better": true,
+      "category": "satisfaction",
+      "dependencies": []
+    },
+    "churn_rate": {
+      "label": "Churn Rate",
+      "actual_column": "churn_rate_actual",
+      "formula": "Customers lost / starting customer count",
+      "unit": "%",
+      "higher_is_better": false,
+      "category": "retention",
+      "dependencies": []
+    },
+    "customer_lifetime_value": {
+      "label": "Customer Lifetime Value",
+      "actual_column": "clv_actual",
+      "budget_column": "clv_budget",
+      "formula": "Projected net revenue attributable to the customer relationship",
+      "unit": "USD",
+      "higher_is_better": true,
+      "category": "loyalty",
+      "dependencies": []
+    }
+  }
+}

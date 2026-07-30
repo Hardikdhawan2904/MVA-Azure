@@ -1,0 +1,16 @@
+customer_id,name,email,segment
+CUST-001,Alice,alice@test.com,Premium
+CUST-002,Bob,bob@test.com,Standard
+CUST-003,Charlie,charlie@test.com,Premium
+CUST-001,Alice Duplicate,alice2@test.com,Standard
+CUST-004,Diana,diana@test.com,Enterprise
+CUST-005,Eve,eve@test.com,Standard
+CUST-002,Bob Again,bob3@test.com,Premium
+CUST-006,Frank,frank@test.com,Standard
+CUST-007,Grace,grace@test.com,Premium
+CUST-003,Charlie Dupe,charlie2@test.com,Enterprise
+CUST-008,Henry,henry@test.com,Standard
+CUST-009,Iris,iris@test.com,Premium
+CUST-010,Jack,jack@test.com,Standard
+CUST-001,Alice Third,alice3@test.com,Enterprise
+CUST-011,Kate,kate@test.com,Premium

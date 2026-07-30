@@ -1,0 +1,27 @@
+# config/scheduling_budget.yml
+#
+# Stage 5 (AnalyticsScheduler, app/services/scheduling/) budget defaults —
+# prevents a wide dataset (many numeric/categorical columns) from making
+# the Planner's unbounded output translate into dozens of executed
+# analyses in one request. See the plan's "Improve Current Fallbacks" /
+# Performance Considerations sections for the full rationale.
+
+# Hard cap on how many analyses execute per request, after prioritizing
+# explicitly-requested (question-driven) analyses, then KPI-grounded ones,
+# then by PlannedAnalysis.priority. Requested analyses are never trimmed,
+# even if this cap is exceeded by them alone.
+max_parallel_analyses: 8
+
+# Of the scheduled analyses, only this many (by the same priority order)
+# are allowed to attempt a real ML-backed strategy — the rest are forced
+# toward deterministic strategies in Stage 6 regardless of what
+# CapabilityProfile.execution says (can only downgrade, never upgrade).
+max_ml_analyses: 3
+
+# Of the ML-allowed analyses, only this many may select an algorithm
+# tagged cost_tier="expensive" in the model registry (Stage 6) — the rest
+# select the cheapest viable algorithm for their analysis type, or fall
+# through to deterministic if none qualifies. Enforced by ModelSelector,
+# not the Scheduler itself (the Scheduler doesn't know which algorithm
+# will be chosen yet).
+max_expensive_operations: 2

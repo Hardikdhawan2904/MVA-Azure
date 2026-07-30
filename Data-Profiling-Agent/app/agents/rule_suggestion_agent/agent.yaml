@@ -1,0 +1,123 @@
+agent:
+  name: RSA
+  full_name: Rule Suggestion Agent
+  version: "1.0.0"
+  domain: Data Quality — Business Rule Discovery
+
+  role: >
+    Data quality analyst embedded in the profiling pipeline. RSA is activated once a
+    dataset has been profiled and passed the quality gate. It investigates column
+    statistics and value distributions to propose new validation rules the engine
+    can actually enforce on future uploads of the same domain.
+
+  goal: >
+    Propose up to 5 engine-compatible business rules that would catch real data
+    quality issues in this dataset, without duplicating rules already active for
+    this domain. Every suggestion requires human approval before it is ever
+    evaluated — RSA proposes, it never activates a rule itself.
+
+  constraints:
+    - Only proposes rule types the RuleEngine can execute (see supported_rule_types)
+    - Never invents a column name — target_column/left_column/right_column/etc.
+      must be exact physical column names from this dataset
+    - Must call check_existing_rules before finalizing — never duplicates an
+      already-active rule_key for this domain
+    - Returns ONLY valid parseable JSON — no prose, no markdown fences
+    - Cannot approve, activate, or evaluate a rule — that is RuleRepository /
+      the human-approval API's responsibility, not this agent's
+
+  supported_rule_types:
+    - non_null
+    - expected_unique
+    - regex_match
+    - allowed_values
+    - numeric_range
+    - column_comparison
+    - conditional_required
+
+  # ── LLM config ──────────────────────────────────────────────────────────────
+  llm:
+    provider: Azure OpenAI   # _build_chat_model() in nodes/pipeline.py: AzureChatOpenAI
+    model: from_settings   # resolved at runtime from Settings.llm_model — kept
+                            # out of this file so one env var controls every
+                            # LLM-touching node in the pipeline, not just this agent
+    temperature: 0.2
+    max_tokens: 2000
+    recursion_limit: 15
+
+  # ── LangGraph ───────────────────────────────────────────────────────────────
+  langgraph:
+    framework: LangGraph (StateGraph)
+    pattern: ReAct — Agent-Tools Loop
+    state_schema: RuleSuggestionAgentState
+
+    pipeline:
+      entry_point: agent
+      agent_tools:
+        - get_column_statistics
+        - check_value_distribution
+        - check_existing_rules
+
+  # ── Tools ─────────────────────────────────────────────────────────────────────
+  tools:
+    - name: get_column_statistics
+      description: >
+        Gets the full pre-computed statistics for a specific column by its
+        physical name (nulls, distinct count, dtype, sample values, etc.).
+        Returns an error string listing available columns if the name isn't found.
+      inputs: [column_name]
+      reads: "Run-bound col_profiles (closed over at tool-build time)"
+
+    - name: check_value_distribution
+      description: >
+        Gets the full distinct-value distribution (top-20 value counts) for a
+        column — used before proposing an allowed_values rule, to see every
+        distinct value rather than just the first few samples in the profile.
+      inputs: [column_name]
+      reads: "Run-bound DataFrame (closed over at tool-build time)"
+
+    - name: check_existing_rules
+      description: >
+        Lists rule_keys already active for this dataset's domain (from YAML
+        config or previously-approved suggestions). Must be called before
+        finalizing — never propose a rule that duplicates one already in this list.
+      inputs: []
+      reads: "Run-bound existing_rule_keys (closed over at tool-build time)"
+
+  # ── Output schema ─────────────────────────────────────────────────────────────
+  output:
+    format: "list[dict] — one entry per proposed rule (SuggestedRule-shaped)"
+    fields:
+      suggestion_id:      "Server-stamped UUID, not produced by the LLM"
+      rule_key:            "Short, unique, snake_case identifier chosen by the LLM"
+      type:                "One of supported_rule_types"
+      description:         "Human-readable description of what the rule checks"
+      reasoning:           "LLM's rationale for proposing this rule"
+      confidence:          "Float [0.0, 1.0], server-rounded to 4 decimal places"
+      severity:            "low | medium | high"
+      target_columns:      "List of columns this rule concerns (for display)"
+      target_column:       "Exact physical column name — required for non_null/expected_unique/regex_match/allowed_values/numeric_range"
+      pattern:             "Regex pattern — required for regex_match"
+      values:              "List of allowed string values — required for allowed_values"
+      min_value:           "Numeric lower bound — for numeric_range"
+      max_value:           "Numeric upper bound — for numeric_range"
+      inclusive_min:        "Boolean — whether min_value itself is allowed"
+      inclusive_max:        "Boolean — whether max_value itself is allowed"
+      left_column:          "Exact physical column name — required for column_comparison"
+      operator:             "One of >=, >, <=, <, ==, != — required for column_comparison"
+      right_column:         "Exact physical column name — required for column_comparison"
+      condition_column:     "Exact physical column name — required for conditional_required"
+      condition_value:      "Value that triggers the requirement — for conditional_required"
+      required_column:      "Column that must be non-null when the condition holds — for conditional_required"
+      engine_compatible:    "Server-stamped boolean — false if type isn't one RuleEngine can execute"
+      status:               "Server-stamped, always 'proposed' — human approval required before evaluation"
+
+  # ── Invocation ──────────────────────────────────────────────────────────────
+  invocation:
+    entry_function: run_rule_suggestion_agent
+    file: agents/rule_suggestion_agent/graph.py
+    signature: >
+      run_rule_suggestion_agent(llm_model, api_key, col_profiles, df, primary_domain,
+      secondary_domain, existing_rule_keys) -> list[dict]
+    called_from:
+      - "app/agents/data_profiling_agent/nodes/pipeline.py -> generate_suggestions node"

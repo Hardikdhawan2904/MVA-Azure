@@ -1,0 +1,43 @@
+# Belt-and-suspenders root-level rules — each project also has its own .gitignore.
+# These apply everywhere in the tree regardless of which subproject a file is under.
+
+# Secrets — never commit these, in any project
+.env
+*.env
+!.env.example
+secrets.json
+*.key
+*.pem
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs / temp
+*.log
+*.tmp
+*.bak
+tmp/
+
+# Office lock files
+~$*
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+.claude/

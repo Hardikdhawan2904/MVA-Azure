@@ -1,0 +1,16 @@
+txn_id,amount,status,date,customer_id
+TXN-001,100.00,approved,2024-01-01,C-001
+TXN-002,,approved,2024-01-02,C-002
+TXN-003,300.00,,2024-01-03,C-003
+TXN-004,,declined,,
+TXN-005,500.00,approved,2024-01-05,C-005
+TXN-006,,,2024-01-06,C-006
+TXN-007,700.00,approved,,C-007
+TXN-008,,pending,2024-01-08,
+TXN-009,900.00,approved,2024-01-09,C-009
+TXN-010,,,,C-010
+TXN-011,1100.00,approved,2024-01-11,C-011
+TXN-012,1200.00,declined,2024-01-12,C-012
+TXN-013,,approved,,
+TXN-014,1400.00,,2024-01-14,C-014
+TXN-015,1500.00,approved,2024-01-15,C-015

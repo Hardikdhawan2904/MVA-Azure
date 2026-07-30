@@ -1,0 +1,16 @@
+employee_id,name,department,position,hire_date,salary,bonus,pay_date,manager_id,office,country
+EMP-001,John Smith,Engineering,Senior Engineer,2019-03-15,120000,15000,2024-01-31,EMP-010,HQ,US
+EMP-002,Sarah Jones,Marketing,Marketing Manager,2020-07-01,95000,12000,2024-01-31,EMP-011,HQ,US
+EMP-003,Mike Chen,Engineering,Staff Engineer,2018-01-20,145000,20000,2024-01-31,EMP-010,Remote,US
+EMP-004,Lisa Park,HR,HR Specialist,2021-09-10,78000,8000,2024-01-31,EMP-012,HQ,US
+EMP-005,Tom Wilson,Engineering,Junior Engineer,2023-06-01,85000,5000,2024-01-31,EMP-001,HQ,US
+EMP-006,Emma Davis,Finance,Financial Analyst,2020-11-15,92000,10000,2024-01-31,EMP-013,HQ,US
+EMP-007,James Lee,Engineering,Senior Engineer,2019-08-20,125000,16000,2024-01-31,EMP-010,London,GB
+EMP-008,Anna Schmidt,Marketing,Content Lead,2021-04-05,88000,9000,2024-01-31,EMP-002,Berlin,DE
+EMP-009,David Kim,Engineering,Principal Engineer,2017-02-10,165000,25000,2024-01-31,EMP-010,HQ,US
+EMP-010,Rachel Green,Engineering,VP Engineering,2016-05-20,200000,40000,2024-01-31,,HQ,US
+EMP-011,Mark Taylor,Marketing,VP Marketing,2017-09-01,180000,35000,2024-01-31,,HQ,US
+EMP-012,Susan Clark,HR,HR Director,2018-03-15,150000,22000,2024-01-31,,HQ,US
+EMP-013,Robert Lee,Finance,CFO,2015-11-01,220000,50000,2024-01-31,,HQ,US
+EMP-014,Amy Wang,Engineering,Senior Engineer,2020-02-28,118000,14000,2024-01-31,EMP-010,Tokyo,JP
+EMP-015,Carlos Ruiz,Marketing,Digital Marketer,2022-08-15,82000,7000,2024-01-31,EMP-011,HQ,US

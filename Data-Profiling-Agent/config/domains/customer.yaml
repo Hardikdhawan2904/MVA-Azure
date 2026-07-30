@@ -1,0 +1,96 @@
+domain: Customer
+version: 1
+
+secondary_domains:
+  CRM:
+    keywords:
+      - crm
+      - customer_id
+      - account_manager
+      - segment
+      - acquisition
+      - lifecycle
+    semantic_roles:
+      - customer_identifier
+      - customer_segment
+      - acquisition_channel
+
+  Customer Satisfaction:
+    keywords:
+      - satisfaction
+      - nps
+      - csat
+      - survey
+      - feedback
+      - rating
+    semantic_roles:
+      - satisfaction_score
+      - nps_score
+      - feedback_text
+
+  Loyalty:
+    keywords:
+      - loyalty
+      - points
+      - tier
+      - reward
+      - membership
+      - loyalty_status
+    semantic_roles:
+      - loyalty_tier
+      - loyalty_points
+      - membership_status
+
+hierarchy_templates:
+  - key: customer_geographic
+    priority: 100
+    levels:
+      - region
+      - country
+      - city
+      - branch
+
+  - key: customer_segment_tier
+    priority: 80
+    levels:
+      - segment
+      - tier
+      - sub_tier
+
+chart_templates:
+  - key: customers_by_segment
+    category: business
+    chart_type: bar
+    required_roles:
+      - customer_segment
+    aggregation: count
+    title_template: "Customers by Segment"
+
+  - key: satisfaction_distribution
+    category: business
+    chart_type: histogram
+    required_roles:
+      - satisfaction_score
+    aggregation: count
+    title_template: "Customer Satisfaction Distribution"
+
+  - key: loyalty_tier_distribution
+    category: business
+    chart_type: donut
+    required_roles:
+      - loyalty_tier
+    aggregation: count
+    title_template: "Loyalty Tier Distribution"
+
+  - key: interactions_over_time
+    category: business
+    chart_type: line
+    required_roles:
+      - temporal_dimension
+      - interaction_identifier
+    aggregation: count
+    title_template: "Customer Interactions Over Time"
+
+business_rules: []
+mandatory_columns: []
+expected_unique_columns: []

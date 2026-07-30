@@ -1,0 +1,121 @@
+domain: Finance
+version: 1
+
+secondary_domains:
+  Revenue:
+    keywords:
+      - revenue
+      - sales
+      - income
+      - billing
+      - invoice
+      - gross_revenue
+      - net_revenue
+    semantic_roles:
+      - revenue_amount
+      - sales_amount
+      - invoice_amount
+
+  P&L:
+    keywords:
+      - profit
+      - loss
+      - expense
+      - cost
+      - margin
+      - ebitda
+      - operating_income
+    semantic_roles:
+      - profit_amount
+      - expense_amount
+      - margin
+
+  Forecasting:
+    keywords:
+      - forecast
+      - budget
+      - actual
+      - variance
+      - projection
+      - plan
+      - target
+    semantic_roles:
+      - forecast_amount
+      - budget_amount
+      - actual_amount
+      - variance_amount
+
+hierarchy_templates:
+  - key: finance_organizational
+    priority: 100
+    levels:
+      - business_unit
+      - company
+      - cost_centre
+      - account_group
+      - account
+
+  - key: finance_geographic
+    priority: 80
+    levels:
+      - region
+      - country
+      - branch
+
+chart_templates:
+  - key: revenue_trend
+    category: business
+    chart_type: line
+    required_roles:
+      - temporal_dimension
+      - revenue_amount
+    aggregation: sum
+    title_template: "Revenue Trend Over Time"
+
+  - key: revenue_by_hierarchy
+    category: business
+    chart_type: bar
+    required_roles:
+      - hierarchy_dimension
+      - revenue_amount
+    aggregation: sum
+    title_template: "Revenue by {hierarchy_level}"
+
+  - key: actual_vs_forecast
+    category: business
+    chart_type: stacked_bar
+    required_roles:
+      - temporal_dimension
+      - actual_amount
+      - forecast_amount
+    aggregation: sum
+    title_template: "Actual vs Forecast"
+
+  - key: pnl_category_distribution
+    category: business
+    chart_type: bar
+    required_roles:
+      - expense_category
+      - expense_amount
+    aggregation: sum
+    title_template: "P&L Category Distribution"
+
+  - key: variance_by_business_unit
+    category: business
+    chart_type: bar
+    required_roles:
+      - hierarchy_dimension
+      - variance_amount
+    aggregation: sum
+    title_template: "Variance by Business Unit"
+
+business_rules:
+  - rule_key: revenue_positive
+    type: numeric_range
+    target_role: revenue_amount
+    min_value: 0
+    inclusive_min: true
+    severity: medium
+
+mandatory_columns: []
+expected_unique_columns: []

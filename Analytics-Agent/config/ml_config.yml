@@ -1,0 +1,237 @@
+# =============================================================================
+# config/ml_config.yml
+# ML Model Configuration — Swappable Model Registry
+#
+# Change model names, hyperparameters, or swap algorithms here.
+# No code changes required. The MLTool reads this file at startup.
+# =============================================================================
+
+# ── Global ML Settings ────────────────────────────────────────────────────────
+ml_settings:
+  readiness_threshold: 75.0          # Min quality score to allow ML execution
+  llm_readiness_threshold: 75.0      # Min quality score to allow Azure OpenAI narration (else template formatter)
+  fallback_on_low_readiness: true    # If true → use Analytics Tool as fallback
+  fallback_tool: "analytics_tool"    # Which tool to use as fallback
+  fallback_message: >
+    Dataset ML readiness score ({score}) is below the required threshold ({threshold}).
+    Falling back to deterministic Analytics Tool for trend and variance analysis.
+    To enable ML, improve data quality score above {threshold}.
+  model_save_dir: "ml/trained"       # Where trained model files are persisted
+  random_seed: 42
+
+# ── LLM Fallback Config ───────────────────────────────────────────────────────
+llm_fallback:
+  enabled: true
+  trigger: "ml_readiness_fail"       # When to activate
+  provider: "azure"
+  model: "llama-3.3-70b-versatile"
+  temperature: 0.0
+  instruction: >
+    The ML model could not run because the dataset does not meet quality requirements.
+    Use the deterministic analytical evidence provided below to generate a business narrative.
+    Do NOT estimate or guess. Only narrate the evidence supplied.
+
+# ── Model 1: Prophet — Time-Series Forecasting ────────────────────────────────
+prophet:
+  enabled: true
+  use_case: "Monthly underwriting result and premium forecasting"
+  why: >
+    Insurance data has quarterly seasonality (Q4 renewal spikes).
+    Prophet handles missing months, provides confidence intervals required
+    for regulated reporting, and decomposes trend + seasonality.
+  target_columns:
+    - "underwriting_result_actual"
+    - "gross_written_premium_actual"
+    - "net_earned_premium_actual"
+    - "net_claims_incurred_actual"
+  hyperparameters:
+    yearly_seasonality: true
+    quarterly_seasonality: true       # Custom quarterly period (91.25 days)
+    quarterly_fourier_order: 5
+    weekly_seasonality: false
+    daily_seasonality: false
+    seasonality_mode: "multiplicative"
+    uncertainty_samples: 1000
+  forecast_horizons:
+    default_periods: 6
+    frequency: "ME"                   # Month-end
+  model_file: "ml/trained/prophet_{target}.pkl"
+  triggers:
+    - "forecast"
+    - "predict"
+    - "projection"
+    - "next quarter"
+    - "future"
+    - "expected next"
+  fallback_if_disabled: "analytics_tool.trend"
+
+# ── Model 2: LightGBM — Multi-Feature Regression ─────────────────────────────
+lightgbm:
+  enabled: true
+  use_case: "Multi-driver KPI prediction when time alone is insufficient"
+  why: >
+    141 mixed-type columns — LightGBM handles categoricals natively.
+    10-100x faster than XGBoost on 2,000 rows.
+    Feature importance maps directly to business drivers.
+  target_columns:
+    - "underwriting_result_actual"
+    - "gross_written_premium_actual"
+    - "loss_ratio_actual"
+  categorical_features:
+    - "region"
+    - "country_name"
+    - "insurance_segment"
+    - "line_of_business"
+    - "distribution_channel"
+    - "underwriting_risk_band"
+    - "product_category"
+    - "policyholder_segment"
+  hyperparameters:
+    n_estimators: 200
+    learning_rate: 0.05
+    num_leaves: 31
+    min_child_samples: 20
+    subsample: 0.8
+    colsample_bytree: 0.8
+    verbose: -1
+  evaluation:
+    test_size: 0.2
+    metric: "rmse"
+    report_top_n_features: 10
+  model_file: "ml/trained/lightgbm_{target}.pkl"
+  triggers:
+    - "multi-feature forecast"
+    - "predict with features"
+    - "feature-driven forecast"
+  fallback_if_disabled: "analytics_tool.aggregate"
+
+# ── Model 3: Isolation Forest — Anomaly Detection ─────────────────────────────
+isolation_forest:
+  enabled: true
+  use_case: "Detect outliers in financial ratios (loss ratio, combined ratio)"
+  why: >
+    Unsupervised — no labelled anomaly data required.
+    Fast on 2,000 rows. Returns anomaly score for severity ranking.
+    Detects: loss_ratio > 100%, combined_ratio > 110%, unusual claim severity.
+  feature_columns:
+    - "loss_ratio_actual"
+    - "expense_ratio_actual"
+    - "combined_ratio_actual"
+    - "claim_frequency_actual"
+    - "average_claim_severity_actual"
+    - "reserve_adequacy_ratio_actual"
+    - "policy_lapse_rate_actual"
+    - "renewal_rate_actual"
+    - "premium_collection_rate_actual"
+  hyperparameters:
+    contamination: 0.05              # Expected 5% anomaly rate
+    n_estimators: 200
+    max_samples: "auto"
+    bootstrap: false
+  output:
+    flag_column: "anomaly_flag"
+    score_column: "anomaly_score"
+    anomaly_value: -1                # IsolationForest convention
+    normal_value: 1
+  model_file: "ml/trained/isolation_forest.pkl"
+  triggers:
+    - "anomaly"
+    - "anomalies"
+    - "outlier"
+    - "unusual"
+    - "spike"
+    - "irregular"
+    - "detect"
+  fallback_if_disabled: "analytics_tool.rank"  # Rank by ratio deviation from mean
+
+# ── Model 4: XGBoost — Variance Driver Classification ─────────────────────────
+xgboost:
+  enabled: true
+  use_case: "Classify primary variance driver from pre-labelled training data"
+  why: >
+    primary_variance_driver and root_cause_tag are pre-labelled in the dataset.
+    Gold standard for multi-class tabular classification.
+    SHAP values provide per-prediction explainability — no hallucination.
+  target_column: "primary_variance_driver"
+  secondary_target: "root_cause_tag"
+  feature_columns:
+    - "exposure_growth_variance"
+    - "premium_rate_variance"
+    - "policy_mix_variance"
+    - "claim_frequency_variance"
+    - "claim_severity_variance"
+    - "catastrophe_loss_variance"
+    - "fraud_leakage_variance"
+    - "premium_nonpayment_variance"
+    - "fx_translation_variance"
+    - "reinsurance_recovery_variance"
+    - "reserve_development_variance"
+    - "acquisition_cost_variance"
+    - "claims_processing_delay_variance"
+    - "one_off_variance_amount"
+    - "variance_vs_budget_amount"
+    - "variance_vs_prior_year_amount"
+  hyperparameters:
+    n_estimators: 200
+    learning_rate: 0.05
+    max_depth: 5
+    subsample: 0.8
+    colsample_bytree: 0.8
+    eval_metric: "mlogloss"
+    use_label_encoder: false
+    verbosity: 0
+  evaluation:
+    test_size: 0.2
+    stratify: true
+    metrics:
+      - "accuracy"
+      - "f1_macro"
+      - "confusion_matrix"
+    generate_confusion_matrix: true
+    generate_shap: true
+  model_file: "ml/trained/xgboost_classifier.pkl"
+  label_encoder_file: "ml/trained/xgboost_label_encoder.pkl"
+  triggers:
+    - "classify"
+    - "which driver"
+    - "predict driver"
+    - "what caused"
+  fallback_if_disabled: "root_cause_tool"  # Use pre-computed variance columns
+
+# ── Model 5: K-Means — Risk Segmentation ──────────────────────────────────────
+kmeans:
+  enabled: true
+  use_case: "Cluster portfolio into risk profiles by KPI ratios"
+  why: >
+    Unsupervised — no labels needed for segmentation.
+    Cluster centroids are interpretable as Low / Medium / High risk.
+    Applied on KPI ratio columns for portfolio analysis.
+  feature_columns:
+    - "loss_ratio_actual"
+    - "expense_ratio_actual"
+    - "combined_ratio_actual"
+    - "claim_frequency_actual"
+    - "average_claim_severity_actual"
+    - "renewal_rate_actual"
+    - "policy_lapse_rate_actual"
+    - "reserve_adequacy_ratio_actual"
+  hyperparameters:
+    n_clusters: 3                    # Low Risk / Medium Risk / High Risk
+    n_init: 10
+    max_iter: 300
+    algorithm: "lloyd"
+  risk_labels:
+    by_combined_ratio:
+      low_risk_threshold: 90         # combined_ratio < 90 = Low Risk (Profitable)
+      medium_risk_threshold: 100     # 90-100 = Medium Risk (Near Breakeven)
+      high_risk_label: "High Risk (Underwriting Loss)"
+  model_file: "ml/trained/kmeans.pkl"
+  scaler_file: "ml/trained/kmeans_scaler.pkl"
+  triggers:
+    - "segment"
+    - "cluster"
+    - "group"
+    - "risk tier"
+    - "profile"
+    - "categorise"
+  fallback_if_disabled: "analytics_tool.rank"

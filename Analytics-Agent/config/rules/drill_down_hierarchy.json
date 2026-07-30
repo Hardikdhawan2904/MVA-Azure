@@ -1,0 +1,38 @@
+{
+  "geographic": {
+    "level_1": "region",
+    "level_2": "country_name",
+    "level_3": "insurer_legal_entity",
+    "level_4": "insurance_regulator"
+  },
+  "temporal": {
+    "level_1": "fiscal_year",
+    "level_2": "quarter",
+    "level_3": "month",
+    "level_4": "reporting_date"
+  },
+  "business": {
+    "level_1": "insurance_segment",
+    "level_2": "business_unit",
+    "level_3": "underwriting_department",
+    "level_4": "line_of_business",
+    "level_5": "product_category",
+    "level_6": "product_name"
+  },
+  "customer": {
+    "level_1": "policyholder_segment",
+    "level_2": "customer_type",
+    "level_3": "industry_sector"
+  },
+  "distribution": {
+    "level_1": "distribution_channel"
+  },
+  "risk": {
+    "level_1": "underwriting_risk_band",
+    "level_2": "coverage_type",
+    "level_3": "policy_term_type"
+  },
+  "reinsurance": {
+    "level_1": "reinsurance_treaty_type"
+  }
+}

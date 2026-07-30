@@ -1,0 +1,103 @@
+# Chart intelligence configuration
+version: 1
+
+# Maximum charts to generate per run
+max_charts: 5
+
+# Target composition (approximate)
+target_business_charts: 3
+target_profiling_charts: 2
+
+# Chart type requirements
+chart_type_requirements:
+  bar:
+    requires_dimension: true
+    requires_metric: true
+    max_dimension_cardinality: 30
+
+  line:
+    requires_temporal_or_ordered: true
+    requires_metric: true
+
+  stacked_bar:
+    requires_dimension: true
+    requires_series: true
+    requires_metric: true
+    max_dimension_cardinality: 20
+    max_series_cardinality: 10
+
+  pie:
+    requires_dimension: true
+    requires_metric: true
+    max_dimension_cardinality: 10
+
+  donut:
+    requires_dimension: true
+    requires_metric: true
+    max_dimension_cardinality: 10
+
+  histogram:
+    requires_numeric: true
+    min_distinct_values: 10
+
+  box:
+    requires_numeric: true
+    optional_grouping: true
+    max_grouping_cardinality: 15
+
+  heatmap:
+    requires_x_dimension: true
+    requires_y_dimension: true
+    requires_metric: true
+    max_x_cardinality: 20
+    max_y_cardinality: 20
+
+  scatter:
+    requires_x_numeric: true
+    requires_y_numeric: true
+    max_points: 5000
+
+  kpi:
+    requires_metric: true
+    single_value: true
+
+# Profiling chart templates (domain-agnostic)
+profiling_chart_templates:
+  - key: missing_values_by_column
+    category: profiling
+    chart_type: bar
+    title_template: "Missing Values by Column"
+    description: "Percentage of null values per column"
+
+  - key: quality_score_by_dimension
+    category: quality
+    chart_type: bar
+    title_template: "Quality Score by Dimension"
+    description: "Assessment score for each quality dimension"
+
+  - key: numeric_distribution
+    category: profiling
+    chart_type: histogram
+    title_template: "{column_name} Distribution"
+    description: "Distribution of values for numeric column"
+
+  - key: rule_violations_by_rule
+    category: quality
+    chart_type: bar
+    title_template: "Rule Violations by Rule"
+    description: "Count of violations per business rule"
+
+# Ranking weights
+ranking_weights:
+  domain_relevance: 0.30
+  data_availability: 0.25
+  metric_validity: 0.15
+  dimension_cardinality: 0.10
+  temporal_coverage: 0.10
+  hierarchy_compatibility: 0.05
+  quality_score: 0.05
+
+# Limits
+max_data_points_per_chart: 100
+default_sort_direction: desc
+default_limit: 15

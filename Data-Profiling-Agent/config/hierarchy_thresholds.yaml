@@ -1,0 +1,17 @@
+# Hierarchy validation thresholds
+version: 1
+
+# Functional dependency validation
+accepted_consistency: 0.98
+warning_consistency: 0.90
+min_mapping_coverage: 0.90
+
+# Identifier exclusion
+identifier_cardinality_threshold: 0.98
+
+# Conflict reporting
+max_conflict_samples: 5
+
+# Chain selection
+min_chain_length: 2
+max_chain_length: 10

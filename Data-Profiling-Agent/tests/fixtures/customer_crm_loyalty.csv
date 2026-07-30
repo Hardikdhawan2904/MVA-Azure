@@ -1,0 +1,16 @@
+customer_id,name,email,segment,loyalty_tier,loyalty_points,signup_date,last_interaction,country,satisfaction_score
+CUST-001,Alice Johnson,alice@example.com,Premium,Gold,15200,2020-03-15,2024-01-20,US,8.5
+CUST-002,Bob Smith,bob@example.com,Standard,Silver,4800,2021-06-22,2024-01-18,GB,7.2
+CUST-003,Charlie Brown,charlie@example.com,Premium,Platinum,28500,2019-01-10,2024-01-22,US,9.1
+CUST-004,Diana Prince,diana@example.com,Standard,Bronze,1200,2023-02-28,2024-01-15,DE,6.0
+CUST-005,Eve Wilson,eve@example.com,Enterprise,Platinum,42000,2018-07-05,2024-01-21,US,9.5
+CUST-006,Frank Lee,frank@example.com,Standard,Silver,5600,2021-09-14,2024-01-19,FR,7.8
+CUST-007,Grace Kim,grace@example.com,Premium,Gold,18900,2020-11-30,2024-01-22,JP,8.2
+CUST-008,Henry Chen,henry@example.com,Standard,Bronze,800,2023-08-10,2024-01-10,AU,5.5
+CUST-009,Iris Patel,iris@example.com,Enterprise,Platinum,35000,2019-04-20,2024-01-23,IN,9.0
+CUST-010,Jack Davis,jack@example.com,Standard,Silver,3200,2022-01-15,2024-01-17,CA,6.8
+CUST-011,Kate Moore,kate@example.com,Premium,Gold,21000,2020-05-08,2024-01-21,US,8.7
+CUST-012,Leo Garcia,leo@example.com,Standard,Bronze,950,2023-11-01,2024-01-12,MX,5.2
+CUST-013,Mia Taylor,mia@example.com,Enterprise,Platinum,51000,2017-12-20,2024-01-22,GB,9.3
+CUST-014,Noah Brown,noah@example.com,Standard,Silver,4100,2022-04-18,2024-01-16,DE,7.0
+CUST-015,Olivia White,olivia@example.com,Premium,Gold,16500,2021-01-25,2024-01-20,FR,8.0

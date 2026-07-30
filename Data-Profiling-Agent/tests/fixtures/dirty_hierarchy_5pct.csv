@@ -1,0 +1,41 @@
+region,country,city,amount
+North,US,New York,1000
+North,US,Chicago,1500
+North,US,Boston,800
+North,CA,Toronto,1200
+North,CA,Montreal,900
+South,BR,Sao Paulo,2000
+South,BR,Rio,1800
+South,AR,Buenos Aires,700
+South,AR,Cordoba,500
+East,JP,Tokyo,3000
+East,JP,Osaka,2500
+East,KR,Seoul,2200
+East,KR,Busan,1100
+West,AU,Sydney,1900
+West,AU,Melbourne,1600
+West,NZ,Auckland,800
+West,NZ,Wellington,600
+North,US,Seattle,1400
+North,CA,Vancouver,1100
+South,BR,Brasilia,900
+East,JP,Nagoya,1800
+West,AU,Brisbane,1200
+North,US,Denver,950
+South,AR,Rosario,450
+East,KR,Incheon,980
+West,NZ,Christchurch,550
+North,US,Portland,870
+South,BR,Salvador,760
+East,JP,Fukuoka,1500
+West,AU,Perth,1050
+North,US,Austin,1300
+South,BR,Curitiba,680
+East,JP,Sapporo,1100
+West,AU,Adelaide,890
+North,CA,Calgary,780
+South,AR,Mendoza,420
+East,KR,Daegu,850
+West,NZ,Hamilton,480
+South,US,Miami,1600
+South,US,Atlanta,1450

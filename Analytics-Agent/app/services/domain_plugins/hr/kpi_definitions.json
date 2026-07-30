@@ -1,0 +1,33 @@
+{
+  "kpis": {
+    "headcount": {
+      "label": "Headcount",
+      "actual_column": "headcount_actual",
+      "budget_column": "headcount_budget",
+      "formula": "Total active employees for the period",
+      "unit": "count",
+      "higher_is_better": true,
+      "category": "workforce",
+      "dependencies": []
+    },
+    "attrition_rate": {
+      "label": "Attrition Rate",
+      "actual_column": "attrition_rate_actual",
+      "formula": "Employees departed / average headcount",
+      "unit": "%",
+      "higher_is_better": false,
+      "category": "retention",
+      "dependencies": []
+    },
+    "payroll_cost": {
+      "label": "Payroll Cost",
+      "actual_column": "payroll_cost_actual",
+      "budget_column": "payroll_cost_budget",
+      "formula": "Total compensation cost for the period",
+      "unit": "USD",
+      "higher_is_better": false,
+      "category": "cost",
+      "dependencies": []
+    }
+  }
+}

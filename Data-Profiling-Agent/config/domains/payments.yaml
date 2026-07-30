@@ -1,0 +1,131 @@
+domain: Payments
+version: 1
+
+secondary_domains:
+  Authorization:
+    keywords:
+      - authorization
+      - auth_status
+      - approval_code
+      - decline_reason
+      - auth_code
+      - auth_response
+    semantic_roles:
+      - authorization_status
+      - authorization_code
+      - approval_code
+      - decline_reason
+
+  Clearing:
+    keywords:
+      - clearing
+      - clearing_date
+      - network_batch
+      - clearing_status
+      - clearing_reference
+    semantic_roles:
+      - clearing_date
+      - clearing_status
+
+  Settlement:
+    keywords:
+      - settlement
+      - settlement_date
+      - settled_amount
+      - settlement_status
+      - settlement_reference
+    semantic_roles:
+      - settlement_date
+      - settlement_amount
+      - settlement_status
+
+  Fraud:
+    keywords:
+      - fraud
+      - risk_score
+      - fraud_flag
+      - suspicious
+      - fraud_indicator
+      - chargeback
+    semantic_roles:
+      - fraud_score
+      - fraud_flag
+      - risk_indicator
+
+hierarchy_templates:
+  - key: payments_geographic_merchant
+    priority: 100
+    levels:
+      - region
+      - country
+      - merchant
+      - terminal
+
+  - key: payments_channel_type
+    priority: 80
+    levels:
+      - channel
+      - payment_method
+      - card_type
+
+chart_templates:
+  - key: transaction_volume_over_time
+    category: business
+    chart_type: line
+    required_roles:
+      - temporal_dimension
+      - transaction_identifier
+    aggregation: count
+    title_template: "Transaction Volume Over Time"
+
+  - key: transaction_value_over_time
+    category: business
+    chart_type: line
+    required_roles:
+      - temporal_dimension
+      - monetary_amount
+    aggregation: sum
+    title_template: "Transaction Value Over Time"
+
+  - key: payment_outcome_distribution
+    category: business
+    chart_type: pie
+    required_roles:
+      - status_dimension
+    aggregation: count
+    title_template: "Payment Outcome Distribution"
+
+  - key: authorization_decline_reasons
+    category: business
+    chart_type: bar
+    required_roles:
+      - decline_reason
+    aggregation: count
+    title_template: "Authorization Decline Reasons"
+
+  - key: fraud_rate_by_channel
+    category: business
+    chart_type: bar
+    required_roles:
+      - channel_dimension
+      - fraud_flag
+    aggregation: mean
+    title_template: "Fraud Rate by Channel"
+
+business_rules:
+  - rule_key: settlement_after_authorization
+    type: column_comparison
+    left_role: settlement_date
+    operator: ">="
+    right_role: authorization_date
+    severity: high
+
+  - rule_key: amount_positive
+    type: numeric_range
+    target_role: monetary_amount
+    min_value: 0
+    inclusive_min: false
+    severity: medium
+
+mandatory_columns: []
+expected_unique_columns: []

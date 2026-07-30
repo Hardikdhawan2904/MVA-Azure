@@ -1,0 +1,406 @@
+# =============================================================================
+# config/business_rules.yml
+# Insurance Business Rules — Predefined + Extensible
+#
+# Structure:
+#   predefined_rules:  Hard-coded insurance domain rules (never delete these)
+#   thresholds:        KPI alert thresholds
+#   variance_drivers:  Pre-computed variance column definitions
+#   flags:             Flag column decoding
+#   new_rules:         Dynamically added rules (by Knowledge Update Tool)
+# =============================================================================
+
+# ── Predefined Insurance Business Rules ──────────────────────────────────────
+predefined_rules:
+
+  # Loss Ratio Rules
+  - id: "BR001"
+    name: "Loss Ratio — Underwriting Profitability Gate"
+    category: "loss_ratio"
+    kpi: "loss_ratio"
+    condition: "loss_ratio_actual > 100"
+    interpretation: "Loss Ratio above 100% means claims exceed premium income — underwriting loss."
+    severity: "critical"
+    action: "Trigger root cause analysis. Escalate to underwriting manager."
+
+  - id: "BR002"
+    name: "Loss Ratio — Warning Threshold"
+    category: "loss_ratio"
+    kpi: "loss_ratio"
+    condition: "loss_ratio_actual > 75 AND loss_ratio_actual <= 100"
+    interpretation: "Loss Ratio is elevated. Monitor claim frequency and severity trends."
+    severity: "warning"
+    action: "Review claim frequency variance and claim severity variance columns."
+
+  - id: "BR003"
+    name: "Loss Ratio — Healthy Band"
+    category: "loss_ratio"
+    kpi: "loss_ratio"
+    condition: "loss_ratio_actual <= 60"
+    interpretation: "Loss Ratio is within healthy range. Underwriting performance is profitable."
+    severity: "healthy"
+    action: "No action required."
+
+  # Combined Ratio Rules
+  - id: "BR004"
+    name: "Combined Ratio — Breakeven Rule"
+    category: "combined_ratio"
+    kpi: "combined_ratio"
+    condition: "combined_ratio_actual >= 100"
+    interpretation: >
+      Combined Ratio >= 100% means the insurer pays out more in claims and expenses
+      than it collects in premium. Pure underwriting loss. Investment income may offset.
+    severity: "critical"
+    action: "Immediate variance decomposition required across loss ratio and expense ratio."
+
+  - id: "BR005"
+    name: "Combined Ratio — Near Breakeven Warning"
+    category: "combined_ratio"
+    kpi: "combined_ratio"
+    condition: "combined_ratio_actual >= 95 AND combined_ratio_actual < 100"
+    interpretation: "Combined Ratio approaching breakeven. Margin is thin."
+    severity: "warning"
+    action: "Review expense ratio and acquisition cost variance."
+
+  # Renewal Rate Rules
+  - id: "BR006"
+    name: "Renewal Rate — Retention Floor"
+    category: "renewal_rate"
+    kpi: "renewal_rate"
+    condition: "renewal_rate_actual < 70"
+    interpretation: >
+      Renewal rate below 70% signals significant policyholder attrition.
+      Portfolio may be shrinking. Competitive or pricing issue likely.
+    severity: "critical"
+    action: "Analyse by product, region, and distribution channel. Review premium rate variance."
+
+  - id: "BR007"
+    name: "Renewal Rate — Healthy Retention"
+    category: "renewal_rate"
+    kpi: "renewal_rate"
+    condition: "renewal_rate_actual >= 80"
+    interpretation: "Renewal rate is healthy. Policyholder retention is strong."
+    severity: "healthy"
+    action: "No action required."
+
+  # Policy Lapse Rate Rules
+  - id: "BR008"
+    name: "Policy Lapse Rate — High Attrition Alert"
+    category: "lapse_rate"
+    kpi: "policy_lapse_rate"
+    condition: "policy_lapse_rate_actual > 20"
+    interpretation: "Lapse rate exceeds 20%. Portfolio is contracting rapidly."
+    severity: "critical"
+    action: "Investigate by policyholder segment, product, and distribution channel."
+
+  # Reserve Adequacy Rules
+  - id: "BR009"
+    name: "Reserve Adequacy — Underfunding Alert"
+    category: "reserve_adequacy"
+    kpi: "reserve_adequacy_ratio"
+    condition: "reserve_adequacy_ratio_actual < 1.0"
+    interpretation: >
+      Reserve adequacy ratio below 1.0 means reserves are insufficient to cover
+      expected claims. This is a regulatory risk and requires immediate attention.
+    severity: "critical"
+    action: "Escalate to actuary. Reserve strengthening may be required."
+
+  - id: "BR010"
+    name: "Reserve Adequacy — Adequacy Warning"
+    category: "reserve_adequacy"
+    kpi: "reserve_adequacy_ratio"
+    condition: "reserve_adequacy_ratio_actual >= 1.0 AND reserve_adequacy_ratio_actual < 1.1"
+    interpretation: "Reserve adequacy is marginal. Limited buffer against adverse development."
+    severity: "warning"
+    action: "Monitor IBNR development. Review reserve development variance."
+
+  # Variance Materiality Rules
+  - id: "BR011"
+    name: "Variance — Material Threshold"
+    category: "variance"
+    kpi: "any"
+    condition: "abs(variance_vs_budget_pct) > 5"
+    interpretation: "Variance exceeds 5% materiality threshold. Root cause analysis required."
+    severity: "warning"
+    action: "Trigger root cause decomposition across 14 variance driver columns."
+
+  - id: "BR012"
+    name: "Variance — Critical Threshold"
+    category: "variance"
+    kpi: "any"
+    condition: "abs(variance_vs_budget_pct) > 15"
+    interpretation: "Variance exceeds 15% critical threshold. Escalation required."
+    severity: "critical"
+    action: "Escalate to CFO. Identify structural vs timing flag."
+
+  # FX Rules
+  - id: "BR013"
+    name: "FX Translation — Material Impact"
+    category: "fx"
+    kpi: "fx_translation_variance"
+    condition: "abs(fx_translation_variance) > abs(variance_vs_budget_amount) * 0.3"
+    interpretation: "FX translation accounts for more than 30% of total variance. Currency risk is dominant."
+    severity: "warning"
+    action: "Assess hedging strategy. Flag as uncontrollable variance."
+
+  # Reinsurance Rules
+  - id: "BR014"
+    name: "Reinsurance Recovery — Shortfall"
+    category: "reinsurance"
+    kpi: "reinsurance_recovery"
+    condition: "reinsurance_recovery_actual < reinsurance_recovery_budget * 0.85"
+    interpretation: "Reinsurance recovery is more than 15% below plan. Review treaty terms."
+    severity: "warning"
+    action: "Review reinsurance_recovery_variance. Analyse by reinsurance_treaty_type."
+
+  # Expense Ratio Rules
+  - id: "BR015"
+    name: "Expense Ratio — Above Peer Benchmark"
+    category: "expense_ratio"
+    kpi: "expense_ratio"
+    condition: "expense_ratio_actual > 35"
+    interpretation: "Expense ratio exceeds 35% industry benchmark. Operating efficiency concern."
+    severity: "warning"
+    action: "Review acquisition_cost_variance and administrative_expense vs budget."
+
+  # CAT Loss Rules
+  - id: "BR016"
+    name: "Catastrophe Loss — Exceptional Event"
+    category: "catastrophe"
+    kpi: "catastrophe_loss_variance"
+    condition: "catastrophe_loss_variance < 0 AND abs(catastrophe_loss_variance) > 100"
+    interpretation: "Catastrophe losses are significantly above plan. Likely an exceptional event."
+    severity: "critical"
+    action: "Flag as uncontrollable. Classify as non-recurring. Review reinsurance CAT cover."
+
+  # Fraud Rules
+  - id: "BR017"
+    name: "Fraud Leakage — Elevated Fraud Signal"
+    category: "fraud"
+    kpi: "fraud_leakage_variance"
+    condition: "fraud_leakage_variance < 0"
+    interpretation: "Fraud leakage is worse than plan. Claims integrity may be compromised."
+    severity: "warning"
+    action: "Review claims_rejected_count_actual vs budget. Escalate to SIU."
+
+  # Premium Collection Rules
+  - id: "BR018"
+    name: "Premium Collection — Below Target"
+    category: "collections"
+    kpi: "premium_collection_rate"
+    condition: "premium_collection_rate_actual < 90"
+    interpretation: "Premium collection rate below 90%. Arrears risk is elevated."
+    severity: "warning"
+    action: "Review premium_arrears_actual vs budget. Analyse by distribution channel."
+
+# ── KPI Thresholds ────────────────────────────────────────────────────────────
+thresholds:
+  loss_ratio:
+    healthy:  60.0
+    warning:  75.0
+    critical: 90.0
+    breakeven: 100.0
+
+  expense_ratio:
+    healthy:  25.0
+    warning:  35.0
+    critical: 45.0
+
+  combined_ratio:
+    healthy:   90.0
+    warning:   95.0
+    breakeven: 100.0
+    critical:  110.0
+
+  renewal_rate:
+    healthy:  80.0
+    warning:  70.0
+    critical: 60.0
+
+  policy_lapse_rate:
+    healthy:  5.0
+    warning:  10.0
+    critical: 20.0
+
+  reserve_adequacy_ratio:
+    adequate:  1.0
+    warning:   0.9
+    critical:  0.8
+
+  premium_collection_rate:
+    healthy:  95.0
+    warning:  90.0
+    critical: 80.0
+
+  variance_vs_budget_pct:
+    immaterial:  5.0
+    material:    10.0
+    critical:    15.0
+
+# ── Variance Driver Definitions ───────────────────────────────────────────────
+variance_drivers:
+  exposure_growth_variance:
+    label: "Exposure Growth"
+    description: "Volume of insured exposure grew or shrank vs plan"
+    direction_logic: "positive = more exposure than plan (favorable for premium)"
+    category: "volume"
+    controllable: true
+
+  premium_rate_variance:
+    label: "Premium Rate"
+    description: "Pricing rate applied to policies differed from plan"
+    direction_logic: "positive = higher rates than plan (favorable)"
+    category: "pricing"
+    controllable: true
+
+  policy_mix_variance:
+    label: "Policy Mix"
+    description: "Product/risk mix shifted from planned composition"
+    direction_logic: "depends on which mix shift occurred"
+    category: "mix"
+    controllable: false
+
+  claim_frequency_variance:
+    label: "Claim Frequency"
+    description: "Number of claims per exposure unit deviated from plan"
+    direction_logic: "negative = more claims than plan (unfavorable)"
+    category: "claims"
+    controllable: false
+
+  claim_severity_variance:
+    label: "Claim Severity"
+    description: "Average cost per claim deviated from plan"
+    direction_logic: "negative = higher cost per claim than plan (unfavorable)"
+    category: "claims"
+    controllable: false
+
+  catastrophe_loss_variance:
+    label: "Catastrophe Loss"
+    description: "CAT events caused unexpected loss above plan"
+    direction_logic: "always negative when CAT exceeds plan"
+    category: "catastrophe"
+    controllable: false
+
+  fraud_leakage_variance:
+    label: "Fraud Leakage"
+    description: "Fraud-related claims above or below plan"
+    direction_logic: "negative = more fraud than plan (unfavorable)"
+    category: "integrity"
+    controllable: true
+
+  premium_nonpayment_variance:
+    label: "Premium Non-Payment"
+    description: "Premium collection shortfall vs plan"
+    direction_logic: "negative = less premium collected than plan"
+    category: "collections"
+    controllable: true
+
+  fx_translation_variance:
+    label: "FX Translation"
+    description: "Foreign exchange rate movement impacted USD reporting"
+    direction_logic: "depends on currency movement direction"
+    category: "fx"
+    controllable: false
+
+  reinsurance_recovery_variance:
+    label: "Reinsurance Recovery"
+    description: "Reinsurance recoveries above or below plan"
+    direction_logic: "positive = more recovery than plan (favorable)"
+    category: "reinsurance"
+    controllable: false
+
+  reserve_development_variance:
+    label: "Reserve Development"
+    description: "Prior year reserve re-estimation vs plan"
+    direction_logic: "negative = adverse reserve development (unfavorable)"
+    category: "reserving"
+    controllable: false
+
+  acquisition_cost_variance:
+    label: "Acquisition Cost"
+    description: "Commission and acquisition costs vs plan"
+    direction_logic: "negative = higher costs than plan (unfavorable)"
+    category: "expense"
+    controllable: true
+
+  claims_processing_delay_variance:
+    label: "Claims Processing Delay"
+    description: "Timing of claims settlement vs plan"
+    direction_logic: "structural or timing depending on flag"
+    category: "operational"
+    controllable: true
+
+  one_off_variance_amount:
+    label: "One-Off / Exceptional"
+    description: "Non-recurring, exceptional item not in plan"
+    direction_logic: "can be either direction"
+    category: "one_off"
+    controllable: false
+
+# ── Flag Decoding ─────────────────────────────────────────────────────────────
+flags:
+  structural_vs_timing_flag:
+    S: "Structural — underlying business performance issue, expected to persist"
+    T: "Timing — cash flow or recognition timing difference, expected to reverse"
+
+  recurring_flag:
+    Y: "Recurring — expected to continue in future periods"
+    N: "Non-Recurring — one-off or temporary"
+
+  controllable_flag:
+    Y: "Controllable — management can take corrective action"
+    N: "Uncontrollable — driven by external factors (e.g. CAT events, FX, market)"
+
+# ── Supported Operations ──────────────────────────────────────────────────────
+supported_operations:
+  - id: "show_kpi"
+    description: "Display a KPI value with optional comparison"
+    requires: ["rule_engine", "sql_tool", "analytics_tool", "explanation_tool"]
+
+  - id: "variance_vs_budget"
+    description: "Actual vs Budget variance analysis"
+    requires: ["rule_engine", "sql_tool", "analytics_tool", "explanation_tool"]
+
+  - id: "variance_vs_prior_year"
+    description: "Actual vs Prior Year (YoY) analysis"
+    requires: ["rule_engine", "sql_tool", "analytics_tool", "explanation_tool"]
+
+  - id: "root_cause_analysis"
+    description: "Why did a metric change — driver decomposition"
+    requires: ["rule_engine", "sql_tool", "analytics_tool", "root_cause_tool", "explanation_tool"]
+
+  - id: "trend"
+    description: "Period-over-period trend analysis"
+    requires: ["rule_engine", "sql_tool", "analytics_tool", "explanation_tool"]
+
+  - id: "forecast"
+    description: "Predict future KPI values"
+    requires: ["rule_engine", "sql_tool", "ml_tool", "explanation_tool"]
+    ml_required: true
+    fallback: "trend"
+
+  - id: "anomaly_detection"
+    description: "Detect ratio outliers"
+    requires: ["sql_tool", "ml_tool", "explanation_tool"]
+    ml_required: true
+    fallback: "analytics_tool.rank"
+
+  - id: "segmentation"
+    description: "Cluster portfolio into risk profiles"
+    requires: ["sql_tool", "ml_tool", "explanation_tool"]
+    ml_required: true
+    fallback: "analytics_tool.rank"
+
+  - id: "drill_down"
+    description: "Break down a KPI by a dimension"
+    requires: ["rule_engine", "sql_tool", "analytics_tool", "explanation_tool"]
+
+  - id: "ranking"
+    description: "Rank entities by a metric"
+    requires: ["sql_tool", "analytics_tool", "explanation_tool"]
+
+# ── New Rules (Dynamically Added by Knowledge Update Tool) ────────────────────
+# Rules added below this line are generated at runtime.
+# Each new rule must pass validation before being stored here.
+# Format mirrors the predefined_rules structure above.
+new_rules: []

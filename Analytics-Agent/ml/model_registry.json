@@ -1,0 +1,50 @@
+{
+  "models": {
+    "lightgbm_regressor": {
+      "algorithm": "LightGBM",
+      "target": "revenue",
+      "r2": 0.5453495361627355,
+      "timestamp": "2026-07-30T08:34:17.580644"
+    },
+    "isolation_forest": {
+      "algorithm": "IsolationForest",
+      "anomaly_count": 50,
+      "total_records": 1000,
+      "contamination": 0.05,
+      "timestamp": "2026-07-30T08:34:14.467085"
+    },
+    "xgboost_classifier": {
+      "algorithm": "XGBoost",
+      "target": "primary_variance_driver",
+      "accuracy": 0.718,
+      "f1_macro": 0.5551,
+      "accuracy_cv_std": 0.0337,
+      "f1_macro_cv_std": 0.0749,
+      "single_split_accuracy": 0.68,
+      "single_split_f1_macro": 0.5057,
+      "classes": [
+        "ACQUISITION COST",
+        "CLAIM FREQUENCY",
+        "CLAIM SEVERITY",
+        "EXPOSURE GROWTH",
+        "OTHER",
+        "PREMIUM NON-PAYMENT",
+        "PREMIUM RATE",
+        "REINSURANCE RECOVERY"
+      ],
+      "train_rows": 800,
+      "test_rows": 200,
+      "timestamp": "2026-07-16T18:53:58.122389"
+    },
+    "kmeans_segmentation": {
+      "algorithm": "KMeans",
+      "n_clusters": 3,
+      "timestamp": "2026-07-30T08:34:17.019598"
+    },
+    "prophet_forecast": {
+      "algorithm": "Prophet",
+      "periods": 6,
+      "timestamp": "2026-07-30T08:34:20.279006"
+    }
+  }
+}

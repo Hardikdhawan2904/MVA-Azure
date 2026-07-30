@@ -1,0 +1,104 @@
+domain: HR
+version: 1
+
+secondary_domains:
+  Employee:
+    keywords:
+      - employee
+      - emp_id
+      - hire_date
+      - department
+      - position
+      - manager
+      - tenure
+    semantic_roles:
+      - employee_identifier
+      - hire_date
+      - department
+      - position
+
+  Payroll:
+    keywords:
+      - payroll
+      - salary
+      - compensation
+      - bonus
+      - deduction
+      - pay_date
+      - gross_pay
+      - net_pay
+    semantic_roles:
+      - salary_amount
+      - compensation
+      - pay_date
+
+  Recruitment:
+    keywords:
+      - recruitment
+      - applicant
+      - interview
+      - offer
+      - candidate
+      - vacancy
+      - job_posting
+    semantic_roles:
+      - applicant_identifier
+      - application_date
+      - interview_stage
+
+hierarchy_templates:
+  - key: hr_organizational
+    priority: 100
+    levels:
+      - division
+      - department
+      - team
+      - position
+
+  - key: hr_geographic
+    priority: 80
+    levels:
+      - region
+      - country
+      - office
+      - floor
+
+chart_templates:
+  - key: employee_count_by_department
+    category: business
+    chart_type: bar
+    required_roles:
+      - department
+      - employee_identifier
+    aggregation: count
+    title_template: "Employee Count by Department"
+
+  - key: payroll_by_department
+    category: business
+    chart_type: stacked_bar
+    required_roles:
+      - department
+      - salary_amount
+    aggregation: sum
+    title_template: "Payroll by Department"
+
+  - key: hiring_trend
+    category: business
+    chart_type: line
+    required_roles:
+      - temporal_dimension
+      - hire_date
+    aggregation: count
+    title_template: "Hiring Trend Over Time"
+
+  - key: tenure_distribution
+    category: business
+    chart_type: histogram
+    required_roles:
+      - tenure
+    aggregation: count
+    title_template: "Employee Tenure Distribution"
+
+business_rules: []
+mandatory_columns: []
+expected_unique_columns: []

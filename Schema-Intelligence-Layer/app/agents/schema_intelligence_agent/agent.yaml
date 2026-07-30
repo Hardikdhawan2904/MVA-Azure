@@ -1,0 +1,110 @@
+agent:
+  name: SIA
+  full_name: Schema Intelligence Agent
+  version: "1.0.0"
+  domain: Data Intake — Quality Gate, Metadata Extraction, Domain Classification
+
+  role: >
+    First stop for every raw dataset upload. SIA validates the file, loads it,
+    runs it through a deterministic data-quality gate, and — for new datasets or
+    ones explicitly flagged for re-analysis — classifies it into a business
+    domain via the Dataset Classification Agent. Its business_domain output
+    drives Agent 2 (Data Profiling Agent) entirely; no downstream agent accepts
+    a manual domain override.
+
+  goal: >
+    Turn a raw CSV/XLSX upload into a cataloged, quality-scored, classified
+    dataset record — without re-running LLM classification on every append to
+    an already-classified dataset, and without ever letting a classification
+    failure block the upload itself.
+
+  constraints:
+    - Rejects (422) any dataset that fails the deterministic quality gate before
+      any LLM call is made — never spends an LLM call on data already known to
+      be too poor to use
+    - Only re-runs classification for a new dataset or when the caller explicitly
+      sets force_reclassify=true — appending to an existing, already-classified
+      dataset reuses the prior classification unchanged
+    - A classification failure degrades gracefully (Other/General fallback) —
+      it never fails the upload itself
+
+  data_sources:
+    - metadata_catalog: >
+        Postgres-backed dataset catalog (app/services/database.py). insert_metadata
+        creates the initial row for a new dataset; update_metadata_after_reupload and
+        update_metadata_after_classification keep it in sync as rows/classification
+        change; get_metadata_by_name is how an upload is recognized as a replacement
+        of an already-cataloged filename rather than a new dataset. Re-uploading an
+        already-seen filename replaces the prior catalog entry outright (not an
+        append/merge) -- every response always reflects exactly the file just
+        uploaded; an informational warning still notes the prior version's row
+        count/timestamp so an accidental re-upload isn't silently invisible.
+    - dataframe_registry: >
+        In-memory cache of the last-uploaded DataFrame per dataset_id
+        (app/datastore/registry.py: store_dataframe/get_dataframe) -- just this
+        upload's own data, not combined with anything prior. Used to serve
+        GET /datasets/{dataset_id}/dataframe later; if the server restarted and
+        the cache is empty, that endpoint 404s until the dataset is re-uploaded.
+
+  # ── LLM config ──────────────────────────────────────────────────────────────
+  llm:
+    provider: Azure OpenAI   # see classification_agent/agent.yaml for the one sub-agent
+                            # that actually makes LLM calls, and its own llm section
+    model: from_settings   # Settings.AZURE_OPENAI_DEPLOYMENT
+
+  # ── LangGraph ───────────────────────────────────────────────────────────────
+  langgraph:
+    framework: LangGraph (StateGraph)
+    pattern: Deterministic pipeline with two real decision points (quality gate,
+      classification-needed) — not a ReAct loop itself. See classification_agent/
+      for the one genuine tool-calling sub-agent this pipeline invokes, and only
+      when classification is actually needed.
+    state_schema: SchemaIntelligenceState
+
+    pipeline:
+      entry_point: validate_and_load
+      nodes:
+        - validate_and_load
+        - check_existing_dataset
+        - run_quality_gate
+        - extract_metadata_node
+        - classify_dataset_node
+        - reuse_existing_classification_node
+        - persist_and_finalize
+      conditional_edges:
+        - from: run_quality_gate
+          router: quality_gate_router
+          routes:
+            fail: END
+            pass: extract_metadata_node
+        - from: extract_metadata_node
+          router: classification_needed_router
+          routes:
+            classify: classify_dataset_node
+            reuse: reuse_existing_classification_node
+
+  # ── Output schema ─────────────────────────────────────────────────────────────
+  output:
+    format: "dict | JSONResponse (UploadResponse on success, quality-gate report on 422)"
+    fields:
+      dataset_id:            "Unique identifier for this dataset (existing ID on append, new ID otherwise)"
+      dataset_name:          "Original uploaded filename"
+      business_domain:       "Classified business domain — reused unchanged on append unless force_reclassify"
+      sub_domain:            "Classified sub-domain — reused unchanged on append unless force_reclassify"
+      dataset_summary:       "1-2 sentence plain-language summary of the dataset"
+      row_count:             "Total row count after this upload (combined with prior rows on append)"
+      column_count:          "Total column count"
+      column_descriptions:   "dict mapping column name to a one-sentence description"
+      status:                "Completed | Partial — Partial when classification failed but upload still succeeded"
+      dataframe_records:     "Full dataset as a list of row records, for downstream agent consumption"
+      quality_report:        "Deterministic data-quality gate report (score, decision, per-check breakdown)"
+
+  # ── Invocation ──────────────────────────────────────────────────────────────
+  invocation:
+    entry_function: run_schema_intelligence_graph
+    file: app/agents/schema_intelligence_agent/graph.py
+    signature: >
+      run_schema_intelligence_graph(filename, content, force_reclassify) ->
+      dict | JSONResponse
+    called_from:
+      - "app/routes/upload.py -> upload_dataset"
